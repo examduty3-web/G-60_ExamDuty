@@ -1,40 +1,21 @@
 {
   "project_info": {
-    "project_number": "800802310260",
-    "project_id": "examdutyplus",
-    "storage_bucket": "examdutyplus.firebasestorage.app"
+    "project_number": "697432162412",
+    "project_id": "examduty-myversion",
+    "storage_bucket": "examduty-myversion.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:800802310260:android:a79e44559e3aa6ce586921",
+        "mobilesdk_app_id": "1:697432162412:android:cc3a74e04ec1e55ec69849",
         "android_client_info": {
-          "package_name": "com.examdutyplus"
+          "package_name": "com.example.exam_duty_app"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCG0T6DLwnvvpJ87vxxKzEt7Uy8uWxL_As"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": []
-        }
-      }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:800802310260:android:7f5528061f16ea95586921",
-        "android_client_info": {
-          "package_name": "com.examdutyplus.app"
-        }
-      },
-      "oauth_client": [],
-      "api_key": [
-        {
-          "current_key": "AIzaSyCG0T6DLwnvvpJ87vxxKzEt7Uy8uWxL_As"
+          "current_key": "AIzaSyAuJeHeltloTKcr51lSqEivyQer1NzCnxE"
         }
       ],
       "services": {
