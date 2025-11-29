@@ -17,10 +17,7 @@ import 'package:flutter/foundation.dart'
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
-      throw UnsupportedError(
-        'DefaultFirebaseOptions have not been configured for web - '
-        'you can reconfigure this by running the FlutterFire CLI again.',
-      );
+      return web;
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
@@ -28,15 +25,9 @@ class DefaultFirebaseOptions {
       case TargetPlatform.iOS:
         return ios;
       case TargetPlatform.macOS:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for macos - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return macos;
       case TargetPlatform.windows:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for windows - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return windows;
       case TargetPlatform.linux:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for linux - '
@@ -63,7 +54,36 @@ class DefaultFirebaseOptions {
     messagingSenderId: '697432162412',
     projectId: 'examduty-myversion',
     storageBucket: 'examduty-myversion.firebasestorage.app',
+    iosClientId: '697432162412-b7uii3dpnctf1q19fo7iu9kg1n4aj44i.apps.googleusercontent.com',
     iosBundleId: 'com.example.examDutyApp',
+  );
+
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyANsstanN1AFblIrLiVfZpKdV9WbzgMcyI',
+    appId: '1:697432162412:web:1bd50e91e3197133c69849',
+    messagingSenderId: '697432162412',
+    projectId: 'examduty-myversion',
+    authDomain: 'examduty-myversion.firebaseapp.com',
+    storageBucket: 'examduty-myversion.firebasestorage.app',
+  );
+
+  static const FirebaseOptions macos = FirebaseOptions(
+    apiKey: 'AIzaSyAsGJrpo6ZBpQdOB_5LuXVwMZj3aXn_kvg',
+    appId: '1:697432162412:ios:6516a95c4da8700dc69849',
+    messagingSenderId: '697432162412',
+    projectId: 'examduty-myversion',
+    storageBucket: 'examduty-myversion.firebasestorage.app',
+    iosClientId: '697432162412-b7uii3dpnctf1q19fo7iu9kg1n4aj44i.apps.googleusercontent.com',
+    iosBundleId: 'com.example.examDutyApp',
+  );
+
+  static const FirebaseOptions windows = FirebaseOptions(
+    apiKey: 'AIzaSyANsstanN1AFblIrLiVfZpKdV9WbzgMcyI',
+    appId: '1:697432162412:web:c6f4b8cf3677186ec69849',
+    messagingSenderId: '697432162412',
+    projectId: 'examduty-myversion',
+    authDomain: 'examduty-myversion.firebaseapp.com',
+    storageBucket: 'examduty-myversion.firebasestorage.app',
   );
 
 }

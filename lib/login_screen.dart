@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'admin_login.dart';
 import 'dashboard_screen.dart';
 
@@ -13,6 +14,10 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
+  static const String allowedDomain = '@pilani.bits-pilani.ac.in';
+
+  bool _isLoading = false;
+
   void _onAdminTap(BuildContext context) {
     Navigator.push(
       context,
@@ -20,27 +25,96 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  void _onSignIn(BuildContext context) {
-    final email = _emailController.text.trim();
-    final password = _passwordController.text.trim();
-    final userName = email.contains('@') ? email.split('@')[0] : email;
+  Future<void> _onSignIn(BuildContext context) async {
+    final String email = _emailController.text.trim().toLowerCase();
+    final String password = _passwordController.text.trim();
 
-    // For demo, just allow any non-empty credentials (add proper validation for real use!)
-    if (email.isNotEmpty && password.isNotEmpty) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => DashboardScreen(
-            userName: userName,
-            userEmail: email,
-          ),
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter both email and password')),
+      );
+      return;
+    }
+
+    if (!email.contains('@') || !email.endsWith(allowedDomain)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please use your official BITS Pilani email (…@pilani.bits-pilani.ac.in)'),
         ),
       );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter valid credentials')),
-      );
+      return;
     }
+
+    setState(() => _isLoading = true);
+
+    try {
+      // Sign in with Firebase Auth
+      final UserCredential userCred = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(email: email, password: password);
+
+      final User? user = userCred.user;
+
+      if (user == null) {
+        throw FirebaseAuthException(
+            code: 'NO_USER', message: 'Sign-in succeeded but no user was returned.');
+      }
+
+      // Derive username: prefer Firebase displayName, fallback to local derivation
+      final String userName = (user.displayName != null && user.displayName!.trim().isNotEmpty)
+          ? user.displayName!
+          : (email.contains('@') ? email.split('@')[0] : email);
+
+      // Navigate to Dashboard only after successful sign-in
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DashboardScreen(
+              userName: userName,
+              userEmail: user.email ?? email,
+            ),
+          ),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      String message = 'Sign-in failed.';
+      switch (e.code) {
+        case 'user-not-found':
+          message = 'No user found for that email.';
+          break;
+        case 'wrong-password':
+          message = 'Incorrect password.';
+          break;
+        case 'invalid-email':
+          message = 'Invalid email address.';
+          break;
+        case 'user-disabled':
+          message = 'This user has been disabled.';
+          break;
+        default:
+          message = e.message ?? 'Sign-in failed: ${e.code}';
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message)),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Sign-in error: ${e.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 
   @override
@@ -71,7 +145,7 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 children: [
                   Image.asset(
-                    'assets/admin_logo.png', // Your admin logo file (transparent)
+                    'assets/admin_logo.png',
                     width: 38,
                     height: 38,
                     fit: BoxFit.contain,
@@ -190,6 +264,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(height: 7),
                         TextFormField(
                           controller: _emailController,
+                          keyboardType: TextInputType.emailAddress,
                           decoration: InputDecoration(
                             hintText: 'yourname@pilani.bits-pilani.ac.in',
                             isDense: true,
@@ -251,7 +326,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
-                            onPressed: () => _onSignIn(context),
+                            onPressed: _isLoading ? null : () => _onSignIn(context),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: const Color(0xFF6C0AF4),
                               padding: const EdgeInsets.symmetric(vertical: 16),
@@ -260,14 +335,19 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                               elevation: 3,
                             ),
-                            child: const Text(
-                              'Sign In',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                              ),
-                            ),
+                            child: _isLoading
+                                ? const SizedBox(
+                                    height: 20,
+                                    child: Center(child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)),
+                                  )
+                                : const Text(
+                                    'Sign In',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    ),
+                                  ),
                           ),
                         ),
                         const SizedBox(height: 11),

@@ -12,7 +12,12 @@
           "package_name": "com.example.exam_duty_app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "697432162412-ltcftjnmlmmei5hapvre1dq7k2m5fonn.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyAuJeHeltloTKcr51lSqEivyQer1NzCnxE"
@@ -20,7 +25,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "697432162412-ltcftjnmlmmei5hapvre1dq7k2m5fonn.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "697432162412-b7uii3dpnctf1q19fo7iu9kg1n4aj44i.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.examDutyApp"
+              }
+            }
+          ]
         }
       }
     }
