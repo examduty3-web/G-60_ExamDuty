@@ -4,6 +4,8 @@ import 'invigilation_form.dart';
 import 'center_details.dart';
 import 'dashboard_screen.dart';
 import 'login_screen.dart'; // <- Change this import if your login screen file/class is named differently
+import 'feedback_form.dart';
+import 'travel_stay.dart';
 
 class ExamFormalitiesScreen extends StatelessWidget {
   final String userName;
@@ -351,7 +353,17 @@ class ExamFormalitiesScreen extends StatelessWidget {
                     color: const Color(0xFFE4B852),
                     title: "Feedback",
                     subtitle: "Share Your Exam Duty Feedback",
-                    onTap: () {},
+                    onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => FeedbackFormScreen(
+                          userName: userName,
+                            userEmail: userEmail,
+                        ),
+                      ),
+                    );
+                  },
                   ),
                   _FormalitiesCard(
                     icon: Icons.flight_takeoff_rounded,
@@ -359,7 +371,17 @@ class ExamFormalitiesScreen extends StatelessWidget {
                     title: "Travel & Stay",
                     subtitle: "Submit: Your Accommodation Details",
                     iconTransform: Matrix4.rotationZ(-0.15),
-                    onTap: () {},
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => TravelStayScreen(
+                            userName: userName,
+                            userEmail: userEmail,
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),

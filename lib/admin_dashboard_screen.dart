@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
-import 'login_screen.dart';
+import 'admin_login.dart';
+import 'submission_tracking.dart';
+import 'feedback_summary.dart';
+// 🚨 NEW IMPORTS FOR ADMIN CHECK
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class AdminDashboardScreen extends StatelessWidget {
+class AdminDashboardScreen extends StatefulWidget {
   final String userName;
   final String userEmail;
 
@@ -10,6 +15,50 @@ class AdminDashboardScreen extends StatelessWidget {
     required this.userName,
     required this.userEmail,
   });
+
+  @override
+  State<AdminDashboardScreen> createState() => _AdminDashboardScreenState();
+}
+
+class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
+  // 🚨 State variables for admin verification
+  bool _isAdmin = false;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkAdminStatus();
+  }
+
+  // 🚨 Function to check if the current user's UID exists in the 'admins' collection
+  void _checkAdminStatus() async {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user != null) {
+      try {
+        final docSnapshot = await FirebaseFirestore.instance
+            .collection('admins')
+            .doc(user.uid)
+            .get();
+
+        if (mounted) {
+          setState(() {
+            _isAdmin = docSnapshot.exists;
+          });
+        }
+      } catch (e) {
+        // Log error if Firestore lookup fails (e.g., rules/network error)
+        print('Error checking admin status: $e');
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
 
   void _showLogoutDialog(BuildContext context) {
     showDialog(
@@ -25,10 +74,14 @@ class AdminDashboardScreen extends StatelessWidget {
             child: const Text("Cancel"),
           ),
           TextButton(
-            onPressed: () {
+            onPressed: () async {
+              // 🚨 Firebase Sign Out
+              await FirebaseAuth.instance.signOut();
+              
+              if (!mounted) return;
               Navigator.of(context).pop();
               Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (context) => const LoginScreen()),
+                MaterialPageRoute(builder: (context) => const AdminLoginScreen()),
                 (route) => false,
               );
             },
@@ -93,6 +146,34 @@ class AdminDashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 🚨 Show loading spinner while checking admin status
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Colors.white,
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    
+    // Fallback: If not admin, show an unauthorized message
+    if (!_isAdmin) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Access Denied')),
+        body: const Center(
+          child: Padding(
+            padding: EdgeInsets.all(30.0),
+            child: Text(
+              "You are not authorized to view the admin dashboard.",
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 18, color: Colors.red),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Main Dashboard UI
     return Scaffold(
       backgroundColor: Colors.white,
       body: Column(
@@ -161,7 +242,7 @@ class AdminDashboardScreen extends StatelessWidget {
                       ],
                     ),
                   ),
-                  // User info card - completely inside purple area with spacing below
+                  // User info card - using widget properties
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 15, 20, 0),
                     child: Container(
@@ -209,7 +290,7 @@ class AdminDashboardScreen extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                userName,
+                                widget.userName,
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w700,
                                   fontSize: 16.5,
@@ -219,7 +300,7 @@ class AdminDashboardScreen extends StatelessWidget {
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                userEmail,
+                                widget.userEmail,
                                 style: const TextStyle(
                                   fontSize: 13.5,
                                   color: Colors.white,
@@ -245,12 +326,33 @@ class AdminDashboardScreen extends StatelessWidget {
           _actionCard(
             title: "Feedback Summary",
             subtitle: "Feedback of exam center quality and logistics",
-            onTap: () {},
+            onTap: () {
+              // 🚨 Navigation is safe because _isAdmin is checked on build
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => FeedbackSummaryScreen(
+                    userName: widget.userName,
+                    userEmail: widget.userEmail,
+                  ),
+                ),
+              );
+            },
           ),
           _actionCard(
             title: "Submission Tracking",
             subtitle: "Submission status of invigilation form, feedback & attendance",
-            onTap: () {},
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => SubmissionTrackingScreen(
+                    userName: widget.userName,
+                    userEmail: widget.userEmail,
+                  ),
+                ),
+              );
+            },
           ),
           _actionCard(
             title: "Honorarium Summary",

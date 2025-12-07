@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'login_screen.dart';
 import 'exam_formalities.dart';
+import 'bank_details.dart';
 
 class DashboardScreen extends StatelessWidget {
   final String userName;
@@ -29,13 +30,18 @@ class DashboardScreen extends StatelessWidget {
             onPressed: () {
               Navigator.of(context).pop();
               Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (context) => const LoginScreen()),
+                MaterialPageRoute(
+                  builder: (context) => const LoginScreen(),
+                ),
                 (route) => false,
               );
             },
             child: const Text(
               "Logout",
-              style: TextStyle(color: Color(0xFF5335EA), fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: Color(0xFF5335EA),
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ],
@@ -85,7 +91,11 @@ class DashboardScreen extends StatelessWidget {
                                 color: Color(0xFF5335EA),
                                 shape: BoxShape.circle,
                               ),
-                              child: const Icon(Icons.school_rounded, color: Colors.white, size: 21),
+                              child: const Icon(
+                                Icons.school_rounded,
+                                color: Colors.white,
+                                size: 21,
+                              ),
                             ),
                           ),
                         ),
@@ -103,17 +113,23 @@ class DashboardScreen extends StatelessWidget {
                         Padding(
                           padding: const EdgeInsets.only(right: 6),
                           child: IconButton(
-                            icon: const Icon(Icons.logout, color: Colors.white, size: 26),
+                            icon: const Icon(
+                              Icons.logout,
+                              color: Colors.white,
+                              size: 26,
+                            ),
                             onPressed: () => _showLogoutDialog(context),
                           ),
                         ),
                       ],
                     ),
                   ),
-                  // Avatar is black circle with white border
                   Container(
                     margin: const EdgeInsets.fromLTRB(20, 22, 20, 18),
-                    padding: const EdgeInsets.symmetric(vertical: 17, horizontal: 14),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 17,
+                      horizontal: 14,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFF9180CB),
                       borderRadius: BorderRadius.circular(16),
@@ -140,7 +156,11 @@ class DashboardScreen extends StatelessWidget {
                           child: const CircleAvatar(
                             backgroundColor: Colors.black,
                             radius: 21,
-                            child: Icon(Icons.person, color: Colors.white, size: 28),
+                            child: Icon(
+                              Icons.person,
+                              color: Colors.white,
+                              size: 28,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 17),
@@ -159,7 +179,10 @@ class DashboardScreen extends StatelessWidget {
                             const SizedBox(height: 3),
                             Text(
                               userEmail,
-                              style: const TextStyle(fontSize: 14, color: Colors.white),
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.white,
+                              ),
                             ),
                           ],
                         ),
@@ -170,28 +193,35 @@ class DashboardScreen extends StatelessWidget {
               ),
             ],
           ),
-          // ---- Your Exam Duties ---- //
+          // Your Exam Duties
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 18.5, vertical: 0),
             child: Row(
-              children: [
+              children: const [
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
+                    children: [
                       Text(
                         "Your Exam Duties",
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: Colors.black),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 17,
+                          color: Colors.black,
+                        ),
                       ),
                       SizedBox(height: 2),
                       Text(
                         "Select an exam duty to manage submissions",
-                        style: TextStyle(fontSize: 12, color: Colors.black54),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.black54,
+                        ),
                       ),
                     ],
                   ),
                 ),
-                const _RoleButtonSmall(),
+                _RoleButtonSmall(),
               ],
             ),
           ),
@@ -204,7 +234,6 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  // "Name of the Subject" card
   Widget _buildEvolutionOfDesignFinal(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
@@ -224,18 +253,26 @@ class DashboardScreen extends StatelessWidget {
                 children: [
                   const Text(
                     "Name of the Subject",
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
                   const Spacer(),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 11, vertical: 4),
                     decoration: BoxDecoration(
                       color: const Color(0xFFFFE0A1),
                       borderRadius: BorderRadius.circular(19),
                     ),
                     child: Row(
                       children: const [
-                        Icon(Icons.currency_rupee, color: Color(0xFFF9A825), size: 16),
+                        Icon(
+                          Icons.currency_rupee,
+                          color: Color(0xFFF9A825),
+                          size: 16,
+                        ),
                         SizedBox(width: 2),
                         Text(
                           "Pending",
@@ -249,7 +286,6 @@ class DashboardScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 3),
-                  // ---- Arrow button for link ----
                   InkWell(
                     onTap: () {
                       Navigator.push(
@@ -265,7 +301,11 @@ class DashboardScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(20),
                     child: const Padding(
                       padding: EdgeInsets.all(4.0),
-                      child: Icon(Icons.arrow_forward_ios, color: Colors.black38, size: 16),
+                      child: Icon(
+                        Icons.arrow_forward_ios,
+                        color: Colors.black38,
+                        size: 16,
+                      ),
                     ),
                   ),
                 ],
@@ -273,17 +313,28 @@ class DashboardScreen extends StatelessWidget {
               const SizedBox(height: 13),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const Icon(Icons.calendar_today_outlined, size: 17, color: Color(0xFF7B78AA)),
-                  const SizedBox(width: 7),
-                  const Text(
-                    "15 Nov 2025",
-                    style: TextStyle(color: Color(0xFF7B78AA), fontSize: 15),
+                children: const [
+                  Icon(
+                    Icons.calendar_today_outlined,
+                    size: 17,
+                    color: Color(0xFF7B78AA),
                   ),
-                  const Spacer(),
-                  const Icon(Icons.schedule, size: 17, color: Color(0xFF7B78AA)),
-                  const SizedBox(width: 5),
-                  const Text(
+                  SizedBox(width: 7),
+                  Text(
+                    "15 Nov 2025",
+                    style: TextStyle(
+                      color: Color(0xFF7B78AA),
+                      fontSize: 15,
+                    ),
+                  ),
+                  Spacer(),
+                  Icon(
+                    Icons.schedule,
+                    size: 17,
+                    color: Color(0xFF7B78AA),
+                  ),
+                  SizedBox(width: 5),
+                  Text(
                     "Forenoon",
                     style: TextStyle(
                       color: Color(0xFF7B78AA),
@@ -296,17 +347,28 @@ class DashboardScreen extends StatelessWidget {
               const SizedBox(height: 10),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const Icon(Icons.location_on_outlined, size: 19, color: Color(0xFF7B78AA)),
-                  const SizedBox(width: 7),
-                  const Text(
-                    "Lucknow",
-                    style: TextStyle(color: Color(0xFF7B78AA), fontSize: 15),
+                children: const [
+                  Icon(
+                    Icons.location_on_outlined,
+                    size: 19,
+                    color: Color(0xFF7B78AA),
                   ),
-                  const Spacer(),
-                  const Icon(Icons.description_outlined, size: 17, color: Color(0xFF7B78AA)),
-                  const SizedBox(width: 5),
-                  const Text(
+                  SizedBox(width: 7),
+                  Text(
+                    "Lucknow",
+                    style: TextStyle(
+                      color: Color(0xFF7B78AA),
+                      fontSize: 15,
+                    ),
+                  ),
+                  Spacer(),
+                  Icon(
+                    Icons.description_outlined,
+                    size: 17,
+                    color: Color(0xFF7B78AA),
+                  ),
+                  SizedBox(width: 5),
+                  Text(
                     "Mid-Semester",
                     style: TextStyle(
                       color: Color(0xFF7B78AA),
@@ -320,11 +382,18 @@ class DashboardScreen extends StatelessWidget {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  const Icon(Icons.trending_up, size: 19, color: Color(0xFF7B78AA)),
+                  const Icon(
+                    Icons.trending_up,
+                    size: 19,
+                    color: Color(0xFF7B78AA),
+                  ),
                   const SizedBox(width: 7),
                   const Text(
                     "Progress",
-                    style: TextStyle(color: Color(0xFF7B78AA), fontSize: 15),
+                    style: TextStyle(
+                      color: Color(0xFF7B78AA),
+                      fontSize: 15,
+                    ),
                   ),
                   const SizedBox(width: 10),
                   SizedBox(
@@ -337,7 +406,13 @@ class DashboardScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 7),
-                  const Text("0%", style: TextStyle(color: Colors.black87, fontSize: 13)),
+                  const Text(
+                    "0%",
+                    style: TextStyle(
+                      color: Colors.black87,
+                      fontSize: 13,
+                    ),
+                  ),
                 ],
               ),
             ],
@@ -387,14 +462,21 @@ class DashboardScreen extends StatelessWidget {
             icon: Icons.home_rounded,
             label: "Home",
             onTap: () {
-              debugPrint("Home tapped");
+              // already here
             },
           ),
           _NavItem(
             icon: Icons.account_balance_rounded,
             label: "Bank Details",
             onTap: () {
-              debugPrint("Bank Details tapped");
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => BankDetailsScreen(
+                    userName: userName,
+                    userEmail: userEmail,
+                  ),
+                ),
+              );
             },
           ),
           _NavItem(
@@ -436,7 +518,11 @@ class _NavItem extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: Color(0xFF196BDE), size: 28),
+          Icon(
+            icon,
+            color: const Color(0xFF196BDE),
+            size: 28,
+          ),
           const SizedBox(height: 2),
           Text(
             label,
@@ -452,9 +538,9 @@ class _NavItem extends StatelessWidget {
   }
 }
 
-// Minimal Role button as per layout
 class _RoleButtonSmall extends StatelessWidget {
   const _RoleButtonSmall();
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -469,9 +555,15 @@ class _RoleButtonSmall extends StatelessWidget {
           minimumSize: const Size(8, 8),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(13),
-            side: const BorderSide(color: Color(0xFFD9D5F8), width: 1),
+            side: const BorderSide(
+              color: Color(0xFFD9D5F8),
+              width: 1,
+            ),
           ),
-          textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+          textStyle: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+          ),
         ),
         child: const Text("Role"),
       ),
