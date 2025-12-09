@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+// 🚨 NEW IMPORTS
+import 'package:cloud_firestore/cloud_firestore.dart'; 
+
 import 'admin_login.dart';
 import 'dashboard_screen.dart';
 
@@ -17,6 +20,25 @@ class _LoginScreenState extends State<LoginScreen> {
   static const String allowedDomain = '@pilani.bits-pilani.ac.in';
 
   bool _isLoading = false;
+
+  // 🚨 NEW HELPER FUNCTION: Fetch user role from Firestore
+  Future<String> _fetchUserRole(String uid) async {
+    // ⚠️ Assumes roles are stored in the 'user_roles' collection
+    try {
+      final doc = await FirebaseFirestore.instance.collection('user_roles').doc(uid).get();
+      
+      if (doc.exists) {
+        final role = doc.data()?['role'] as String?;
+        // If role field is found, return it, otherwise default to 'Guest'
+        return role ?? 'Guest'; 
+      }
+      return 'Guest'; // Document doesn't exist
+    } catch (e) {
+      print('Error fetching role: $e');
+      return 'Guest'; // Default safe role if fetch fails
+    }
+  }
+
 
   void _onAdminTap(BuildContext context) {
     Navigator.push(
@@ -48,7 +70,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // Sign in with Firebase Auth
+      // 1. Sign in with Firebase Auth
       final UserCredential userCred = await FirebaseAuth.instance
           .signInWithEmailAndPassword(email: email, password: password);
 
@@ -58,13 +80,16 @@ class _LoginScreenState extends State<LoginScreen> {
         throw FirebaseAuthException(
             code: 'NO_USER', message: 'Sign-in succeeded but no user was returned.');
       }
-
-      // Derive username: prefer Firebase displayName, fallback to local derivation
+      
+      // 🚨 2. Fetch the user's role before navigating
+      final String userRole = await _fetchUserRole(user.uid); 
+      
+      // 3. Derive username
       final String userName = (user.displayName != null && user.displayName!.trim().isNotEmpty)
           ? user.displayName!
           : (email.contains('@') ? email.split('@')[0] : email);
 
-      // Navigate to Dashboard only after successful sign-in
+      // 4. Navigate to Dashboard, passing the role
       if (mounted) {
         Navigator.pushReplacement(
           context,
@@ -72,6 +97,7 @@ class _LoginScreenState extends State<LoginScreen> {
             builder: (context) => DashboardScreen(
               userName: userName,
               userEmail: user.email ?? email,
+              userRole: userRole, // 🚨 PASSING THE FETCHED ROLE
             ),
           ),
         );

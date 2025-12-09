@@ -9,11 +9,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class AdminDashboardScreen extends StatefulWidget {
   final String userName;
   final String userEmail;
+  final String userRole; // 🚨 ADD THIS LINE
 
   const AdminDashboardScreen({
     super.key,
     required this.userName,
     required this.userEmail,
+    required this.userRole, // 🚨 ADD THIS LINE
   });
 
   @override
@@ -25,10 +27,23 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   bool _isAdmin = false;
   bool _isLoading = true;
 
+  // Helper to capitalize strings (for display consistency)
+  String _capitalize(String s) {
+    if (s.isEmpty) return s;
+    s = s.toLowerCase();
+    return s[0].toUpperCase() + s.substring(1);
+  }
+
   @override
   void initState() {
     super.initState();
-    _checkAdminStatus();
+    // OPTIMIZATION: Trust the role passed from login/main.dart for the initial check
+    if (widget.userRole.toLowerCase() == 'admin' || widget.userRole.toLowerCase() == 'super proctor') {
+        _isAdmin = true;
+        _isLoading = false;
+    } else {
+        _checkAdminStatus(); // Fallback check to confirm privileges
+    }
   }
 
   // 🚨 Function to check if the current user's UID exists in the 'admins' collection
@@ -38,7 +53,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     if (user != null) {
       try {
         final docSnapshot = await FirebaseFirestore.instance
-            .collection('admins')
+            .collection('admins') // ⚠️ Ensure this is the correct Admin collection name
             .doc(user.uid)
             .get();
 
@@ -48,7 +63,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           });
         }
       } catch (e) {
-        // Log error if Firestore lookup fails (e.g., rules/network error)
         print('Error checking admin status: $e');
       }
     }
@@ -80,6 +94,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               
               if (!mounted) return;
               Navigator.of(context).pop();
+              // Navigate back to the Admin Login Screen (or general Login Screen)
               Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(builder: (context) => const AdminLoginScreen()),
                 (route) => false,
@@ -278,7 +293,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                             ),
                             child: ClipOval(
                               child: Image.asset(
-                                'assets/admin_logo.png',
+                                'assets/admin_logo.png', // Assuming admin logo
                                 width: 36,
                                 height: 36,
                                 fit: BoxFit.cover,
@@ -300,7 +315,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                               ),
                               const SizedBox(height: 2),
                               Text(
-                                widget.userEmail,
+                                // 🚨 Display the Admin's role and email
+                                '${_capitalize(widget.userRole)} | ${widget.userEmail}',
                                 style: const TextStyle(
                                   fontSize: 13.5,
                                   color: Colors.white,
@@ -317,7 +333,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             ],
           ),
           const SizedBox(height: 25),
-          // Four action cards (very rounded)
+          // Four action cards
           _actionCard(
             title: "Assign Tasks",
             subtitle: "Assign the roles for Observers & Super Proctors",
@@ -327,13 +343,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             title: "Feedback Summary",
             subtitle: "Feedback of exam center quality and logistics",
             onTap: () {
-              // 🚨 Navigation is safe because _isAdmin is checked on build
               Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (context) => FeedbackSummaryScreen(
                     userName: widget.userName,
                     userEmail: widget.userEmail,
+                    userRole: widget.userRole, // 🚨 PASSING ROLE
                   ),
                 ),
               );
@@ -349,6 +365,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   builder: (context) => SubmissionTrackingScreen(
                     userName: widget.userName,
                     userEmail: widget.userEmail,
+                    userRole: widget.userRole, // 🚨 PASSING ROLE
                   ),
                 ),
               );
@@ -363,6 +380,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         ],
       ),
       bottomNavigationBar: Container(
+        // ... (bottom navigation bar implementation is fine)
         padding: const EdgeInsets.only(left: 10, right: 10, bottom: 8, top: 4),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -423,7 +441,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 decoration: BoxDecoration(
                   color: const Color(0xFFF6F6F6),
                   borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: Color(0xFFD9D9D9), width: 1.2),
+                  border: Border.all(color: const Color(0xFFD9D9D9), width: 1.2),
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,

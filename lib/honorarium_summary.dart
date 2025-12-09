@@ -4,11 +4,13 @@ import 'admin_dashboard_screen.dart';
 class HonorariumSummaryScreen extends StatelessWidget {
   final String userName;
   final String userEmail;
+  final String userRole;
 
   const HonorariumSummaryScreen({
     super.key,
     required this.userName,
     required this.userEmail,
+    required this.userRole,
   });
 
   Widget _buildBottomNav(BuildContext context) {
@@ -39,6 +41,7 @@ class HonorariumSummaryScreen extends StatelessWidget {
                     builder: (_) => AdminDashboardScreen(
                       userName: userName,
                       userEmail: userEmail,
+                      userRole: userRole,
                     ),
                   ),
                   (route) => false,

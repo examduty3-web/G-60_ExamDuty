@@ -1,18 +1,20 @@
 // bank_details.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; 
-import 'package:cloud_firestore/cloud_firestore.dart'; // REQUIRED
-import 'package:firebase_auth/firebase_auth.dart';     // REQUIRED
+import 'package:cloud_firestore/cloud_firestore.dart'; 
+import 'package:firebase_auth/firebase_auth.dart'; 
 import 'dashboard_screen.dart'; 
 
 class BankDetailsScreen extends StatefulWidget {
   final String userName;
   final String userEmail;
+  final String userRole; 
 
   const BankDetailsScreen({
     super.key,
     required this.userName,
     required this.userEmail,
+    required this.userRole,
   });
 
   @override
@@ -46,6 +48,7 @@ class _BankDetailsScreenState extends State<BankDetailsScreen> {
     if (uid == null || !mounted) return;
 
     try {
+      // Accessing the document unique to the current user's UID
       final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
       
       if (doc.exists) {
@@ -65,14 +68,14 @@ class _BankDetailsScreenState extends State<BankDetailsScreen> {
     } catch (e) {
       debugPrint('Error loading bank details: $e');
       if (mounted) {
-         ScaffoldMessenger.of(context).showSnackBar(
+          ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Failed to load previous data.')),
         );
       }
     }
   }
 
-  // --- VALIDATION LOGIC ---
+  // --- VALIDATION LOGIC (unchanged) ---
   void _validateAccountMatch() {
     final acc = _accountNumberController.text.trim();
     final conf = _confirmAccountNumberController.text.trim();
@@ -99,7 +102,7 @@ class _BankDetailsScreenState extends State<BankDetailsScreen> {
         _accountMismatchError == null;
   }
 
-  // --- SUBMISSION (WRITE/UPSERT) LOGIC ---
+  // --- SUBMISSION LOGIC (unchanged) ---
   Future<void> _submitBankDetails() async {
     if (!_formKey.currentState!.validate()) return;
     if (_accountMismatchError != null) return;
@@ -118,11 +121,10 @@ class _BankDetailsScreenState extends State<BankDetailsScreen> {
         'branchName': _branchNameController.text.trim(),
       };
 
-      // FIX: Using .set(merge: true) to prevent "NotFound" errors
       await FirebaseFirestore.instance.collection('users').doc(uid).set({
         'bankDetails': bankData,
         'lastUpdated': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true)); // <--- The critical fix
+      }, SetOptions(merge: true)); 
 
       if (!mounted) return;
       showDialog(
@@ -137,7 +139,15 @@ class _BankDetailsScreenState extends State<BankDetailsScreen> {
             TextButton(
               onPressed: () {
                 Navigator.of(ctx).pop();
-                Navigator.of(context).pop(); 
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(
+                    builder: (context) => DashboardScreen(
+                      userName: widget.userName,
+                      userEmail: widget.userEmail,
+                      userRole: widget.userRole,
+                    ),
+                  ),
+                );
               },
               child: const Text("Okay"),
             ),
@@ -184,7 +194,15 @@ class _BankDetailsScreenState extends State<BankDetailsScreen> {
                     children: [
                       IconButton(
                         icon: const Icon(Icons.arrow_back, color: Colors.white, size: 32),
-                        onPressed: () => Navigator.of(context).pop(),
+                        onPressed: () => Navigator.of(context).pushReplacement(
+                          MaterialPageRoute(
+                            builder: (context) => DashboardScreen(
+                              userName: widget.userName,
+                              userEmail: widget.userEmail,
+                              userRole: widget.userRole, 
+                            ),
+                          ),
+                        ),
                       ),
                       const Spacer(),
                       const Text("ExamDuty+", style: TextStyle(fontFamily: "Poppins", color: Colors.white, fontSize: 21, fontWeight: FontWeight.w600)),
@@ -206,37 +224,7 @@ class _BankDetailsScreenState extends State<BankDetailsScreen> {
               ],
             ),
 
-            // SUBJECT CARD (UI element preserved)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  gradient: const LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Color(0x9F1E2CF0), Color(0x946C0AF4)],
-                  ),
-                ),
-                padding: const EdgeInsets.fromLTRB(17, 15, 17, 13),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    Row(
-                      children: [
-                        Text("Name of the Subject", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15.6)),
-                        Spacer(),
-                        _ExamTypeChip(),
-                      ],
-                    ),
-                    SizedBox(height: 7),
-                    Row(children: [Icon(Icons.folder_copy_outlined, color: Colors.white, size: 17), SizedBox(width: 8), Text("Course Code", style: TextStyle(color: Colors.white, fontSize: 13.2))]),
-                    SizedBox(height: 7),
-                    Row(children: [Icon(Icons.calendar_month_rounded, color: Colors.white, size: 16), SizedBox(width: 7), Text("Date", style: TextStyle(color: Colors.white, fontSize: 13.2)), Spacer(), Icon(Icons.access_time_rounded, color: Colors.white70, size: 16), SizedBox(width: 5), Text("Time", style: TextStyle(color: Colors.white, fontSize: 13.2))]),
-                  ],
-                ),
-              ),
-            ),
+            // ❌ REMOVED: Subject Card was here
 
             // MAIN FORM
             Expanded(
@@ -252,12 +240,13 @@ class _BankDetailsScreenState extends State<BankDetailsScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          // Bank Details Header
                           const Text("Bank Details", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16.3)),
                           const SizedBox(height: 5),
                           const Text("Enter your bank account details for exam duty honorarium payment", style: TextStyle(fontSize: 13, color: Colors.black54)),
                           const SizedBox(height: 16),
 
-                          // Info box
+                          // Info box (UI elements preserved)
                           Container(
                             width: double.infinity,
                             decoration: BoxDecoration(color: const Color(0xFFFFF7E8), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFF3C27C), width: 1)),
@@ -282,7 +271,7 @@ class _BankDetailsScreenState extends State<BankDetailsScreen> {
                           ),
                           const SizedBox(height: 18),
 
-                          // FIELDS
+                          // FIELDS (UI elements preserved)
                           _BankField(label: "Account Holder Name", hint: "As per bank records", controller: _holderNameController, keyboardType: TextInputType.name),
                           const SizedBox(height: 14),
                           _BankField(label: "Account Number", hint: "Enter your account number", controller: _accountNumberController, keyboardType: TextInputType.number, obscureText: true, digitsOnly: true),
@@ -354,11 +343,45 @@ class _BankDetailsScreenState extends State<BankDetailsScreen> {
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: const [
-          _NavItem(icon: Icons.home_rounded, label: "Home"),
-          _NavItem(icon: Icons.account_balance_rounded, label: "Bank Details"),
-          _NavItem(icon: Icons.account_balance_wallet_rounded, label: "Honorarium Status"),
-          _NavItem(icon: Icons.person_rounded, label: "My Profile"),
+        children: [
+          _NavItem(
+            icon: Icons.home_rounded, 
+            label: "Home",
+            onTap: () {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (_) => DashboardScreen(
+                    userName: widget.userName,
+                    userEmail: widget.userEmail,
+                    userRole: widget.userRole, 
+                  ),
+                ),
+              );
+            },
+          ),
+          _NavItem(
+            icon: Icons.account_balance_rounded, 
+            label: "Bank Details",
+            onTap: () { 
+              // Currently on Bank Details screen. Do nothing.
+            }
+          ),
+          _NavItem(
+            icon: Icons.account_balance_wallet_rounded, 
+            label: "Honorarium Status",
+            onTap: () {
+              // Placeholder logic
+              debugPrint("Honorarium tapped");
+            }
+          ),
+          _NavItem(
+            icon: Icons.person_rounded, 
+            label: "My Profile",
+            onTap: () {
+              // Placeholder logic
+              debugPrint("Profile tapped");
+            }
+          ),
         ],
       ),
     );
@@ -366,6 +389,7 @@ class _BankDetailsScreenState extends State<BankDetailsScreen> {
 }
 
 class _BankField extends StatelessWidget {
+// ... (BankField implementation is correct)
   final String label;
   final String hint;
   final TextEditingController controller;
@@ -445,32 +469,37 @@ class _BankField extends StatelessWidget {
 class _NavItem extends StatelessWidget {
   final IconData icon;
   final String label;
+  final VoidCallback onTap; 
 
   const _NavItem({
     required this.icon,
     required this.label,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          icon,
-          color: const Color(0xFF196BDE),
-          size: 28,
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: const TextStyle(
-            color: Color(0xFF196BDE),
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            color: const Color(0xFF196BDE),
+            size: 28,
           ),
-        ),
-      ],
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFF196BDE),
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

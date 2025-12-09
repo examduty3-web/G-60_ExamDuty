@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'login_screen.dart';
 import 'admin_dashboard_screen.dart';
-// 🚨 NEW IMPORT: Firebase Authentication is necessary for sign-in
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; 
 
 class AdminLoginScreen extends StatefulWidget {
   const AdminLoginScreen({super.key});
@@ -14,10 +14,23 @@ class AdminLoginScreen extends StatefulWidget {
 class _AdminLoginScreenState extends State<AdminLoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  // 🚨 NEW: State variable for loading and form key for validation
+  
   bool _isLoading = false;
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
+  // 🚨 Helper: Fetches user role directly from Firestore
+  Future<String> _fetchUserRole(String uid) async {
+    try {
+      final doc = await FirebaseFirestore.instance.collection('user_roles').doc(uid).get();
+      if (doc.exists) {
+        return doc.data()?['role'] as String? ?? 'Guest';
+      }
+      return 'Guest'; 
+    } catch (e) {
+      print('Error fetching role for admin check: $e');
+      return 'Guest'; 
+    }
+  }
 
   void _onNotAdminTap(BuildContext context) {
     Navigator.pushAndRemoveUntil(
@@ -27,7 +40,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
     );
   }
 
-  // 🚨 UPDATED: Handles secure sign-in and navigation
+  // 🚨 CRITICAL UPDATE: Restricts login to 'Admin' role only.
   void _onSignIn() async {
     if (!_formKey.currentState!.validate()) return;
     
@@ -39,44 +52,72 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
     final password = _passwordController.text;
     
     try {
-      // 1. Perform Secure Firebase Authentication
+      // 1. Authenticate (Check if user exists)
       final UserCredential userCredential = await FirebaseAuth.instance
           .signInWithEmailAndPassword(email: email, password: password);
 
       final User? user = userCredential.user;
 
-      if (!mounted) return;
+      if (user == null) {
+          throw Exception("Authentication failed, user is null.");
+      }
+      
+      // 2. Fetch User's Role for authorization
+      final String userRole = await _fetchUserRole(user.uid); 
 
-      if (user != null) {
-        // 2. Derive user details for the dashboard
-        final String userName = user.displayName ?? (user.email?.split('@')[0] ?? 'Admin');
-        final String userEmail = user.email ?? email;
+      // 🚨 CRITICAL SECURITY FIX: ONLY check for 'admin' role
+      final bool isAuthorized = userRole.toLowerCase() == 'admin';
 
-        // 3. Navigate to Dashboard (Role check happens INSIDE AdminDashboardScreen)
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => AdminDashboardScreen(
-              userName: userName,
-              userEmail: userEmail,
-            ),
-          ),
+      if (!isAuthorized) {
+        // If unauthorized, sign the user out immediately and block navigation.
+        await FirebaseAuth.instance.signOut(); 
+        throw FirebaseAuthException(
+          code: 'PERMISSION_DENIED',
+          message: 'Access denied. Only authorized Admin users can sign in here.',
         );
       }
+
+      // 3. Navigation (Only happens if the user is a verified Admin)
+      if (!mounted) return;
+
+      final String userName = user.displayName ?? (user.email?.split('@')[0] ?? 'Admin');
+      // Pass the verified role
+      final String verifiedAdminRole = userRole; 
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => AdminDashboardScreen(
+            userName: userName,
+            userEmail: user.email ?? email,
+            userRole: verifiedAdminRole, // Passing the verified role
+          ),
+        ),
+      );
+
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
       
-      // 4. Handle specific Firebase errors (e.g., wrong password, user not found)
       String message = 'Sign in failed.';
-      if (e.code == 'user-not-found' || e.code == 'wrong-password') {
+      
+      if (e.code == 'PERMISSION_DENIED') {
+        message = e.message!; 
+      }
+      else if (e.code == 'user-not-found' || e.code == 'wrong-password') {
         message = 'Invalid email or password.';
-      } else if (e.code == 'invalid-email') {
-        message = 'The email address is badly formatted.';
+      } else {
+         message = 'An error occurred. Please try again.';
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message)),
       );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Sign-in error: ${e.toString()}')),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -84,6 +125,13 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
         });
       }
     }
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
   }
 
   @override
@@ -103,7 +151,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
               ),
             ),
           ),
-          // Top left: Not Admin logo image (NO circle, NO border), text below
+          // Top left: Not Admin logo image
           Positioned(
             top: 22,
             left: 14,
@@ -113,7 +161,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
               child: Column(
                 children: [
                   Image.asset(
-                    'assets/not_admin_logo.png', // <--- your file
+                    'assets/not_admin_logo.png',
                     width: 38,
                     height: 38,
                     fit: BoxFit.contain,
@@ -144,7 +192,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
           // Center login form
           Center(
             child: SingleChildScrollView(
-              child: Form( // 🚨 Wrap content in Form for validation
+              child: Form( 
                 key: _formKey,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -308,7 +356,6 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
-                              // 🚨 Call the async sign-in method
                               onPressed: _isLoading ? null : _onSignIn,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF6C0AF4),

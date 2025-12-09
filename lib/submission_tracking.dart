@@ -1,22 +1,65 @@
 import 'package:flutter/material.dart';
 import 'admin_dashboard_screen.dart';
 
+// --- DATA MODEL PLACEHOLDER ---
+// This model defines the structure expected for each submission record fetched from Firestore.
+class SubmissionData {
+  final String userId;
+  final String name;
+  final String email;
+  final String userRole; 
+  final String subjectName;
+  
+  final bool attendanceSubmitted;
+  final bool invigilationFormSubmitted;
+  final bool feedbackSubmitted;
+  
+  final String? attendanceUrl; 
+  final String? invigilationFileUrl; 
+
+  SubmissionData({
+    required this.userId,
+    required this.name,
+    required this.email,
+    required this.userRole,
+    required this.subjectName,
+    this.attendanceSubmitted = false,
+    this.invigilationFormSubmitted = false,
+    this.feedbackSubmitted = false,
+    this.attendanceUrl,
+    this.invigilationFileUrl,
+  });
+}
+
 class SubmissionTrackingScreen extends StatelessWidget {
   final String userName;
   final String userEmail;
+  final String userRole; // 🚨 ADD THIS LINE
 
   const SubmissionTrackingScreen({
     super.key,
     required this.userName,
     required this.userEmail,
+    required this.userRole, // 🚨 ADD THIS LINE
   });
+
+  // 🚨 LIVE DATA FETCHING PLACEHOLDER
+  // Replace this with your actual FutureBuilder/StreamBuilder setup later.
+  Future<List<SubmissionData>> _fetchLiveSubmissions() async {
+    // 💡 TO DO: Implement Firestore logic here.
+    // 1. Query the 'exam_duties' collection for all submissions.
+    // 2. Map the results into a List<SubmissionData>.
+    
+    // Returning an empty list for now, ready for integration.
+    return []; 
+  }
 
   // ---------------- BOTTOM NAV ----------------
   Widget _buildBottomNav(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(8, 6, 8, 10),
       decoration: BoxDecoration(
-        color: Colors.white, // PURE WHITE BAR
+        color: Colors.white,
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.07),
@@ -31,12 +74,14 @@ class SubmissionTrackingScreen extends StatelessWidget {
           Expanded(
             child: GestureDetector(
               onTap: () {
+                // Navigate back to Admin Dashboard, passing admin details
                 Navigator.pushAndRemoveUntil(
                   context,
                   MaterialPageRoute(
                     builder: (_) => AdminDashboardScreen(
                       userName: userName,
                       userEmail: userEmail,
+                      userRole: userRole, 
                     ),
                   ),
                   (route) => false,
@@ -152,70 +197,83 @@ class SubmissionTrackingScreen extends StatelessWidget {
     String status,
     IconData icon,
     Color color,
+    VoidCallback? onTap,
   ) {
-    return Row(
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12.3,
-            color: Colors.black87,
-          ),
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2.0),
+        child: Row(
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 12.3,
+                color: Colors.black87,
+              ),
+            ),
+            const Spacer(),
+            Icon(
+              icon,
+              size: 16,
+              color: color,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              status,
+              style: TextStyle(
+                fontSize: 12,
+                color: color,
+                decoration: onTap != null ? TextDecoration.underline : null,
+              ),
+            ),
+          ],
         ),
-        const Spacer(),
-        Icon(
-          icon,
-          size: 16,
-          color: color,
-        ),
-        const SizedBox(width: 4),
-        Text(
-          status,
-          style: TextStyle(
-            fontSize: 12,
-            color: color,
-          ),
-        ),
-      ],
+      ),
     );
   }
 
   Widget _submissionRowPending(String label) {
-    return Row(
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12.3,
-            color: Colors.black87,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2.0),
+      child: Row(
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12.3,
+              color: Colors.black87,
+            ),
           ),
-        ),
-        const Spacer(),
-        const Icon(
-          Icons.error_outline,
-          size: 16,
-          color: Color(0xFFFF9800),
-        ),
-        const SizedBox(width: 4),
-        const Text(
-          "Pending",
-          style: TextStyle(
-            fontSize: 12,
+          const Spacer(),
+          const Icon(
+            Icons.error_outline,
+            size: 16,
             color: Color(0xFFFF9800),
           ),
-        ),
-      ],
+          const SizedBox(width: 4),
+          const Text(
+            "Pending",
+            style: TextStyle(
+              fontSize: 12,
+              color: Color(0xFFFF9800),
+            ),
+          ),
+        ],
+      ),
     );
   }
+  
+  // 🚨 CARD WIDGET: Displays User Role, Email, and File Links
+  Widget _submissionListTile(SubmissionData data) {
+    
+    // Determine overall status
+    final bool isComplete = data.attendanceSubmitted && data.feedbackSubmitted && data.invigilationFormSubmitted;
+    
+    final String statusLabel = isComplete ? "Complete" : "Pending";
+    final Color statusBg = isComplete ? const Color(0xFFE3F6E9) : const Color(0xFFFFF3E0);
+    final Color statusText = isComplete ? const Color(0xFF2E7D32) : const Color(0xFFEF6C00);
 
-  Widget _card({
-    required String name,
-    required String statusLabel,
-    required Color statusBg,
-    required Color statusText,
-    required bool feedbackPending,
-    required bool invitationSubmitted,
-  }) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 14, 18, 0),
       child: Container(
@@ -234,7 +292,7 @@ class SubmissionTrackingScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top row
+            // TOP ROW: Name, Role, Status
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -243,23 +301,33 @@ class SubmissionTrackingScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        name,
+                        data.name,
                         style: const TextStyle(
                           fontSize: 14.5,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                       const SizedBox(height: 2),
-                      const Text(
-                        "Name of the Subject",
-                        style: TextStyle(
+                      // 🚨 DISPLAY USER ROLE AND EMAIL
+                      Text(
+                        'Role: ${data.userRole} | ${data.email}',
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          color: Color(0xFF5335EA), 
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        data.subjectName,
+                        style: const TextStyle(
                           fontSize: 12.3,
                           color: Colors.black54,
                         ),
                       ),
                       const SizedBox(height: 2),
                       const Text(
-                        "Date",
+                        "Date (Placeholder)", 
                         style: TextStyle(
                           fontSize: 11.8,
                           color: Colors.black45,
@@ -277,35 +345,40 @@ class SubmissionTrackingScreen extends StatelessWidget {
               color: Color(0xFFE0E0E0),
             ),
             const SizedBox(height: 6),
+            
+            // SUBMISSION TRACKING ROWS
+            // 1. Attendance/Selfie
             _submissionRow(
-              "Attendance",
-              "Submitted",
-              Icons.check_circle_outline,
-              const Color(0xFF4CAF50),
+              "Attendance (Selfie)",
+              data.attendanceSubmitted ? "View File" : "Pending",
+              data.attendanceSubmitted ? Icons.check_circle_outline : Icons.error_outline,
+              data.attendanceSubmitted ? const Color(0xFF4CAF50) : const Color(0xFFFF9800),
+              data.attendanceSubmitted ? () {
+                debugPrint('Viewing Selfie for ${data.name}: ${data.attendanceUrl}');
+              } : null,
             ),
             const SizedBox(height: 5),
-            feedbackPending
-                ? _submissionRowPending("Feedback")
-                : _submissionRow(
-                    "Feedback",
-                    "Submitted",
-                    Icons.check_circle_outline,
-                    const Color(0xFF4CAF50),
-                  ),
+            
+            // 2. Invigilation Form
+            _submissionRow(
+              "Invigilation Form (File)",
+              data.invigilationFormSubmitted ? "View File" : "Pending",
+              data.invigilationFormSubmitted ? Icons.check_circle_outline : Icons.error_outline,
+              data.invigilationFormSubmitted ? const Color(0xFF4CAF50) : const Color(0xFFFF9800),
+              data.invigilationFormSubmitted ? () {
+                 debugPrint('Viewing Form for ${data.name}: ${data.invigilationFileUrl}');
+              } : null,
+            ),
             const SizedBox(height: 5),
-            invitationSubmitted
-                ? _submissionRow(
-                    "Invitation Form",
-                    "Submitted",
-                    Icons.check_circle_outline,
-                    const Color(0xFF4CAF50),
-                  )
-                : _submissionRow(
-                    "Invitation Form",
-                    "Not Applicable",
-                    Icons.remove_circle_outline,
-                    Colors.redAccent,
-                  ),
+            
+            // 3. Feedback
+            _submissionRow(
+              "Feedback",
+              data.feedbackSubmitted ? "Submitted" : "Pending",
+              data.feedbackSubmitted ? Icons.check_circle_outline : Icons.error_outline,
+              data.feedbackSubmitted ? const Color(0xFF4CAF50) : const Color(0xFFFF9800),
+              null, // Feedback usually isn't a file to click
+            ),
           ],
         ),
       ),
@@ -392,29 +465,33 @@ class SubmissionTrackingScreen extends StatelessWidget {
           children: [
             _header(context),
             Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    _pill(),
-                    _card(
-                      name: "Dr. Rajesh Kumar",
-                      statusLabel: "Complete",
-                      statusBg: const Color(0xFFE3F6E9),
-                      statusText: const Color(0xFF2E7D32),
-                      feedbackPending: false,
-                      invitationSubmitted: true, // FIRST BOX SUBMITTED
+              child: FutureBuilder<List<SubmissionData>>(
+                future: _fetchLiveSubmissions(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return Center(child: Text('Error loading data: ${snapshot.error}'));
+                  }
+                  
+                  final submissions = snapshot.data ?? [];
+                  
+                  if (submissions.isEmpty) {
+                    return const Center(child: Text("No exam duty submissions found."));
+                  }
+
+                  return SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        _pill(),
+                        // 🚨 DYNAMICALLY RENDER LIVE DATA
+                        ...submissions.map((data) => _submissionListTile(data)).toList(),
+                        const SizedBox(height: 10),
+                      ],
                     ),
-                    _card(
-                      name: "Dr. Meera Iyer",
-                      statusLabel: "Pending",
-                      statusBg: const Color(0xFFFFF3E0),
-                      statusText: const Color(0xFFEF6C00),
-                      feedbackPending: true,
-                      invitationSubmitted: false,
-                    ),
-                    const SizedBox(height: 10),
-                  ],
-                ),
+                  );
+                },
               ),
             ),
           ],

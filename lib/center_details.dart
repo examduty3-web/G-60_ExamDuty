@@ -1,18 +1,29 @@
 import 'package:flutter/material.dart';
 import 'exam_formalities.dart'; // Adjust import path as needed
+import 'dashboard_screen.dart'; // Import for navigating back
+import 'bank_details.dart'; 
 
 class CenterDetailsScreen extends StatelessWidget {
   final String userName;
   final String userEmail;
+  final String userRole; // 🚨 MUST BE DEFINED
 
   const CenterDetailsScreen({
     super.key,
     required this.userName,
     required this.userEmail,
+    required this.userRole, // 🚨 MUST BE REQUIRED
   });
 
   static const Color fadedPurple = Color(0xFFF3E9FF);
   static const Color iconPurple = Color(0xFF6C0AF4);
+
+  // Helper function to create a MaterialPageRoute, ensuring all data is passed
+  MaterialPageRoute _createRoute(Widget targetWidget) {
+    return MaterialPageRoute(
+      builder: (context) => targetWidget,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -164,16 +175,15 @@ class CenterDetailsScreen extends StatelessWidget {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Black back arrow (no circle)
+                          // Black back arrow (navigates to ExamFormalitiesScreen)
                           InkWell(
                             onTap: () {
                               Navigator.of(context).pushReplacement(
-                                MaterialPageRoute(
-                                  builder: (context) => ExamFormalitiesScreen(
-                                    userName: userName,
-                                    userEmail: userEmail,
-                                  ),
-                                ),
+                                _createRoute(ExamFormalitiesScreen(
+                                  userName: userName,
+                                  userEmail: userEmail,
+                                  userRole: userRole, // 🚨 PASSING ROLE
+                                )),
                               );
                             },
                             child: const Icon(Icons.arrow_back_rounded, color: Colors.black, size: 23),
@@ -316,6 +326,7 @@ class CenterDetailsScreen extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
+          // Note: _NavItem widgets will need to be updated to accept and pass userRole if they navigate elsewhere.
           _NavItem(icon: Icons.home_rounded, label: "Home", onTap: () {}),
           _NavItem(icon: Icons.account_balance_rounded, label: "Bank Details", onTap: () {}),
           _NavItem(icon: Icons.account_balance_wallet_rounded, label: "Honorarium Status", onTap: () {}),
@@ -345,7 +356,7 @@ class _NavItem extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: Color(0xFF196BDE), size: 28),
+          Icon(icon, color: const Color(0xFF196BDE), size: 28),
           const SizedBox(height: 2),
           Text(
             label,

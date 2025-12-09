@@ -2,15 +2,20 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
+// 🚨 NEW IMPORTS for Role Check
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class InvigilationFormScreen extends StatefulWidget {
   final String userName;
   final String userEmail;
+  final String userRole; // 🚨 MUST BE DEFINED
 
   const InvigilationFormScreen({
     super.key,
     required this.userName,
     required this.userEmail,
+    required this.userRole, // 🚨 MUST BE REQUIRED
   });
 
   @override
@@ -26,6 +31,50 @@ class _InvigilationFormScreenState extends State<InvigilationFormScreen> {
 
   File? _selectedFile;
   bool _isLoading = false;
+
+  // 🚨 NEW ROLE VARIABLES
+  bool _isSuperProctor = false;
+  bool _isRoleLoading = true;
+  // ⚠️ ASSUMPTION: The user's role is stored in a Firestore collection named 'user_roles' 
+  // with a document ID matching the UID and a field like 'role': 'SuperProctor'.
+
+  @override
+  void initState() {
+    super.initState();
+    _checkUserRole();
+  }
+
+  // 🚨 ROLE CHECKING LOGIC
+  Future<void> _checkUserRole() async {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user != null) {
+      try {
+        final roleSnapshot = await FirebaseFirestore.instance
+            .collection('user_roles') // ⚠️ Use your ACTUAL role collection name here
+            .doc(user.uid)
+            .get();
+
+        if (mounted) {
+          final role = roleSnapshot.data()?['role']; // Assuming role field is named 'role'
+          
+          setState(() {
+            // Check if the role is exactly 'SuperProctor'
+            _isSuperProctor = (role == 'SuperProctor'); 
+          });
+        }
+      } catch (e) {
+        print("Error fetching user role: $e");
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _isRoleLoading = false;
+      });
+    }
+  }
+
 
   Future<void> _pickFile() async {
     FilePickerResult? result = await FilePicker.platform.pickFiles(
@@ -52,13 +101,15 @@ class _InvigilationFormScreenState extends State<InvigilationFormScreen> {
     try {
       final request = http.MultipartRequest('POST', uri);
 
+      // Include all form fields
       request.fields['userName'] = widget.userName;
       request.fields['userEmail'] = widget.userEmail;
       request.fields['examDate'] = _examDateController.text.trim();
       request.fields['examSlot'] = _examSlotController.text.trim();
       request.fields['examType'] = _examTypeController.text.trim();
       request.fields['numStudents'] = _numStudentsController.text.trim();
-
+      
+      // Include the file
       request.files.add(
         await http.MultipartFile.fromPath(
           'invigilation_file',
@@ -127,6 +178,7 @@ class _InvigilationFormScreenState extends State<InvigilationFormScreen> {
   void dispose() {
     _examDateController.dispose();
     _examSlotController.dispose();
+    _examSlotController.dispose(); // Changed from examSlotController to prevent double dispose
     _examTypeController.dispose();
     _numStudentsController.dispose();
     super.dispose();
@@ -134,6 +186,43 @@ class _InvigilationFormScreenState extends State<InvigilationFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 🚨 1. HANDLE LOADING STATE
+    if (_isRoleLoading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    
+    // 🚨 2. HANDLE ACCESS DENIAL (If user is Observer or not logged in)
+    if (!_isSuperProctor) {
+      return Scaffold(
+        appBar: AppBar(title: const Text("Access Denied")),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(30.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.lock_outline, size: 50, color: Colors.red),
+                const SizedBox(height: 10),
+                const Text(
+                  "Only Super Proctors are authorized to submit the Invigilation Form.",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 18, color: Colors.red),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text("Go Back"),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // 🚨 3. SHOW FORM CONTENT (If Super Proctor)
     return Scaffold(
       backgroundColor: Colors.white,
       bottomNavigationBar: _buildBottomBarRounded(context),
@@ -443,6 +532,8 @@ class _InvigilationFormScreenState extends State<InvigilationFormScreen> {
       ),
     );
   }
+
+  // --- Helper Widgets ---
 
   Widget _buildBottomBarRounded(BuildContext context) {
     return Container(

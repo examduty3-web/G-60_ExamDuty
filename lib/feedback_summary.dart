@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import 'feedback_model.dart'; // Ensure this file exists
+import 'feedback_model.dart'; // Ensure this file exists and includes the userRole property
 import 'admin_dashboard_screen.dart';
 
 // Reference to the Firestore collection where feedback is stored
@@ -12,12 +12,21 @@ final CollectionReference feedbackCollection =
 class FeedbackSummaryScreen extends StatelessWidget {
   final String userName;
   final String userEmail;
+  final String userRole;
 
   const FeedbackSummaryScreen({
     super.key,
     required this.userName,
     required this.userEmail,
+    required this.userRole, // 🚨 ADDED
   });
+
+  // Helper to capitalize strings (for display consistency)
+  String _capitalize(String s) {
+    if (s.isEmpty) return s;
+    s = s.toLowerCase();
+    return s[0].toUpperCase() + s.substring(1);
+  }
 
   // Helper method to build a dynamic feedback card based on the model
   Widget _buildFeedbackCard(FeedbackModel feedback) {
@@ -42,7 +51,15 @@ class FeedbackSummaryScreen extends StatelessWidget {
     }
 
     // Solution for showing all questions and ensuring display is accurate
+    // 💡 NOTE: Assuming feedback.userRole is now available in your FeedbackModel
+    final String roleDisplay = feedback.userRole != null && feedback.userRole.isNotEmpty
+        ? _capitalize(feedback.userRole) : 'Role N/A';
+
     String allFeedbackText = 
+        // Display Role/Email/Name for Admin tracking
+        "Submitted by: ${feedback.userName} ($roleDisplay)\n"
+        "Email: ${feedback.userEmail}\n\n"
+
         // Required Questions (Q1 through Q6)
         "Q1 (Power Supply): ${feedback.q1PowerSupply}\n"
         "Q2 (Power Backup): ${feedback.q2PowerBackup}\n"
@@ -97,7 +114,8 @@ class FeedbackSummaryScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        feedback.userName, // DYNAMIC NAME
+                        // 💡 DISPLAY THE NAME AND ROLE HERE
+                        feedback.userName, 
                         style: const TextStyle(
                           fontSize: 14.5,
                           fontWeight: FontWeight.w600,
@@ -105,9 +123,9 @@ class FeedbackSummaryScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        feedback.userEmail, // DYNAMIC EMAIL
+                        'Role: $roleDisplay | ${feedback.userEmail}', 
                         style: const TextStyle(
-                          fontSize: 12.5,
+                          fontSize: 11.5,
                           color: Colors.black54,
                         ),
                       ),
@@ -120,9 +138,9 @@ class FeedbackSummaryScreen extends StatelessWidget {
                   size: 18,
                 ),
                 const SizedBox(width: 2),
-                // 🚨 FIX: This ensures the rating number shown is the actual number from Firestore.
+                // FIX: Display the actual rating number
                 Text(
-                  feedback.overallRating.toString(), // DYNAMIC RATING (e.g., "5")
+                  feedback.overallRating.toString(), 
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -152,7 +170,7 @@ class FeedbackSummaryScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
-                    // 🚨 FIX: Display the actual overall rating in the bottom tag
+                    // FIX: Display the actual overall rating in the bottom tag
                     "Overall Rating: ${feedback.overallRating}/5", 
                     style: const TextStyle(
                       fontSize: 11.5,
@@ -185,7 +203,7 @@ class FeedbackSummaryScreen extends StatelessWidget {
 
   // Your existing helper widgets (omitted for brevity)
   Widget _buildBottomNav(BuildContext context) {
-    // ... (Your existing _buildBottomNav implementation)
+    // ... (Navigation updated to pass userRole back to AdminDashboardScreen)
     return Container(
       padding: const EdgeInsets.only(left: 10, right: 10, bottom: 8, top: 4),
       decoration: BoxDecoration(
@@ -213,6 +231,7 @@ class FeedbackSummaryScreen extends StatelessWidget {
                     builder: (_) => AdminDashboardScreen(
                       userName: userName,
                       userEmail: userEmail,
+                      userRole: userRole, // 🚨 PASSING ROLE
                     ),
                   ),
                   (route) => false,
@@ -235,11 +254,7 @@ class FeedbackSummaryScreen extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: const [
                     SizedBox(height: 7),
-                    Icon(
-                      Icons.home_rounded,
-                      color: Color(0xFF5135EA),
-                      size: 25,
-                    ),
+                    Icon(Icons.home_rounded, color: Color(0xFF5135EA), size: 25),
                     SizedBox(height: 1),
                     Text(
                       "Home",
@@ -287,15 +302,15 @@ class FeedbackSummaryScreen extends StatelessWidget {
                       letterSpacing: 0.1,
                     ),
                   ),
-                    SizedBox(height: 7),
-                  ],
-                ),
+                  SizedBox(height: 7),
+                ],
               ),
             ),
-          ],
-        ),
-      );
-    }
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _feedbackPill() {
     return Container(
@@ -322,14 +337,13 @@ class FeedbackSummaryScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // STREAM BUILDER FOR REAL-TIME DATA
     return Scaffold(
       backgroundColor: Colors.white,
       bottomNavigationBar: _buildBottomNav(context),
       body: SafeArea(
         child: Column(
           children: [
-            // HEADER (omitted for brevity)
+            // HEADER (Back button navigation updated to use pushReplacement and pass role)
             Stack(
               children: [
                 Container(
@@ -348,7 +362,16 @@ class FeedbackSummaryScreen extends StatelessWidget {
                           color: Colors.white,
                           size: 32,
                         ),
-                        onPressed: () => Navigator.of(context).pop(),
+                        // Navigate back to AdminDashboardScreen
+                        onPressed: () => Navigator.of(context).pushReplacement(
+                          MaterialPageRoute(
+                            builder: (context) => AdminDashboardScreen(
+                              userName: userName,
+                              userEmail: userEmail,
+                              userRole: userRole, // 🚨 PASSING ROLE
+                            ),
+                          ),
+                        ),
                       ),
                       const Spacer(),
                       const Text(
@@ -413,8 +436,15 @@ class FeedbackSummaryScreen extends StatelessWidget {
                     return Center(child: Text('Error loading feedback: ${snapshot.error}'));
                   }
 
+                  // Convert documents to FeedbackModel list
+                  final List<FeedbackModel> feedbackList = snapshot.data!.docs.map((doc) {
+                    // FIX: You need to ensure FeedbackModel.fromFirestore can handle the userRole field
+                    // when mapping the document data.
+                    return FeedbackModel.fromFirestore(doc.data() as Map<String, dynamic>);
+                  }).toList();
+
                   // Handle no data state
-                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  if (feedbackList.isEmpty) {
                     return const Center(
                       child: Padding(
                         padding: EdgeInsets.all(30.0),
@@ -422,11 +452,6 @@ class FeedbackSummaryScreen extends StatelessWidget {
                       ),
                     );
                   }
-
-                  // Convert documents to FeedbackModel list
-                  final List<FeedbackModel> feedbackList = snapshot.data!.docs.map((doc) {
-                    return FeedbackModel.fromFirestore(doc.data() as Map<String, dynamic>);
-                  }).toList();
 
                   // Display the list of feedback cards
                   return ListView.builder(

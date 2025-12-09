@@ -3,22 +3,25 @@ import 'attendance_selfie.dart';
 import 'invigilation_form.dart';
 import 'center_details.dart';
 import 'dashboard_screen.dart';
-import 'login_screen.dart'; // <- Change this import if your login screen file/class is named differently
+import 'login_screen.dart'; 
 import 'feedback_form.dart';
 import 'travel_stay.dart';
 
 class ExamFormalitiesScreen extends StatelessWidget {
   final String userName;
   final String userEmail;
+  // 🚨 REQUIRED PARAMETER
+  final String userRole; 
 
   const ExamFormalitiesScreen({
     super.key,
     required this.userName,
     required this.userEmail,
+    required this.userRole, // 🚨 CONSTRUCTOR UPDATED
   });
 
-  static const Color blueLeft = Color(0x9F1E2CF0);    // #1E2CF0, 62% opacity
-  static const Color purpleRight = Color(0x946C0AF4); // #6C0AF4, 58% opacity
+  static const Color blueLeft = Color(0x9F1E2CF0); 
+  static const Color purpleRight = Color(0x946C0AF4); 
 
   void _showLogoutDialog(BuildContext context) {
     showDialog(
@@ -33,6 +36,10 @@ class ExamFormalitiesScreen extends StatelessWidget {
           ),
           TextButton(
             onPressed: () {
+              // Note: Add Firebase sign-out logic here if implemented.
+              // await FirebaseAuth.instance.signOut(); 
+              
+              if (!context.mounted) return;
               Navigator.of(context).pop();
               Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(builder: (_) => LoginScreen()),
@@ -49,6 +56,13 @@ class ExamFormalitiesScreen extends StatelessWidget {
     );
   }
 
+  // Helper function to create a MaterialPageRoute, ensuring all data is passed
+  MaterialPageRoute _createRoute(Widget targetWidget) {
+    return MaterialPageRoute(
+      builder: (context) => targetWidget,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -60,7 +74,7 @@ class ExamFormalitiesScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Top header
+              // Top header (Unchanged)
               Stack(
                 children: [
                   Container(
@@ -181,7 +195,7 @@ class ExamFormalitiesScreen extends StatelessWidget {
                   ),
                 ],
               ),
-              // Subject Card
+              // Subject Card (Unchanged)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                 child: Container(
@@ -289,12 +303,11 @@ class ExamFormalitiesScreen extends StatelessWidget {
                           onTap: () {
                             Navigator.push(
                               context,
-                              MaterialPageRoute(
-                                builder: (context) => CenterDetailsScreen(
-                                  userName: userName,
-                                  userEmail: userEmail,
-                                ),
-                              ),
+                              _createRoute(CenterDetailsScreen(
+                                userName: userName,
+                                userEmail: userEmail,
+                                userRole: userRole, // 🚨 PASSING ROLE
+                              )),
                             );
                           },
                           child: const Icon(
@@ -322,12 +335,11 @@ class ExamFormalitiesScreen extends StatelessWidget {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (context) => AttendanceSelfieScreen(
-                            userName: userName,
-                            userEmail: userEmail,
-                          ),
-                        ),
+                        _createRoute(AttendanceSelfieScreen(
+                          userName: userName,
+                          userEmail: userEmail,
+                          userRole: userRole, // 🚨 PASSING ROLE
+                        )),
                       );
                     },
                   ),
@@ -339,12 +351,11 @@ class ExamFormalitiesScreen extends StatelessWidget {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (context) => InvigilationFormScreen(
-                            userName: userName,
-                            userEmail: userEmail,
-                          ),
-                        ),
+                        _createRoute(InvigilationFormScreen(
+                          userName: userName,
+                          userEmail: userEmail,
+                          userRole: userRole, // 🚨 PASSING ROLE
+                        )),
                       );
                     },
                   ),
@@ -354,16 +365,15 @@ class ExamFormalitiesScreen extends StatelessWidget {
                     title: "Feedback",
                     subtitle: "Share Your Exam Duty Feedback",
                     onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => FeedbackFormScreen(
+                      Navigator.push(
+                        context,
+                        _createRoute(FeedbackFormScreen(
                           userName: userName,
-                            userEmail: userEmail,
-                        ),
-                      ),
-                    );
-                  },
+                          userEmail: userEmail,
+                          userRole: userRole, // 🚨 PASSING ROLE
+                        )),
+                      );
+                    },
                   ),
                   _FormalitiesCard(
                     icon: Icons.flight_takeoff_rounded,
@@ -374,12 +384,11 @@ class ExamFormalitiesScreen extends StatelessWidget {
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(
-                          builder: (context) => TravelStayScreen(
-                            userName: userName,
-                            userEmail: userEmail,
-                          ),
-                        ),
+                        _createRoute(TravelStayScreen(
+                          userName: userName,
+                          userEmail: userEmail,
+                          userRole: userRole, // 🚨 PASSING ROLE
+                        )),
                       );
                     },
                   ),
@@ -416,11 +425,13 @@ class ExamFormalitiesScreen extends StatelessWidget {
             icon: Icons.home_rounded,
             label: "Home",
             onTap: () {
+              // Return to DashboardScreen, passing the role
               Navigator.of(context).pushReplacement(
                 MaterialPageRoute(
                   builder: (_) => DashboardScreen(
                     userName: userName,
                     userEmail: userEmail,
+                    userRole: userRole, // 🚨 PASSING ROLE
                   ),
                 ),
               );
@@ -436,6 +447,7 @@ class ExamFormalitiesScreen extends StatelessWidget {
 }
 
 class _NavItem extends StatelessWidget {
+// ... (The rest of _NavItem remains the same)
   final IconData icon;
   final String label;
   final VoidCallback onTap;
@@ -454,7 +466,7 @@ class _NavItem extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: Color(0xFF196BDE), size: 28),
+          Icon(icon, color: const Color(0xFF196BDE), size: 28),
           const SizedBox(height: 2),
           Text(
             label,
@@ -471,6 +483,7 @@ class _NavItem extends StatelessWidget {
 }
 
 class _FormalitiesCard extends StatelessWidget {
+// ... (The rest of _FormalitiesCard remains the same)
   final IconData icon;
   final Color color;
   final String title;

@@ -2,18 +2,31 @@ import 'package:flutter/material.dart';
 import 'login_screen.dart';
 import 'exam_formalities.dart';
 import 'bank_details.dart';
+// Note: Ensure placeholder files for HonorariumStatusScreen and MyProfileScreen 
+// are created and accept the three required parameters.
+
+// 🛠️ CORRECTED HELPER FUNCTION
+String _capitalize(String s) {
+  if (s.isEmpty) return s;
+  // Capitalize the first letter and make the rest lowercase
+  s = s.toLowerCase();
+  return s[0].toUpperCase() + s.substring(1);
+}
 
 class DashboardScreen extends StatelessWidget {
   final String userName;
   final String userEmail;
+  final String userRole; 
 
   const DashboardScreen({
     super.key,
     required this.userName,
     required this.userEmail,
+    required this.userRole, 
   });
 
   void _showLogoutDialog(BuildContext context) {
+    // ... (Logout logic remains the same)
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -28,6 +41,7 @@ class DashboardScreen extends StatelessWidget {
           ),
           TextButton(
             onPressed: () {
+              if (!context.mounted) return;
               Navigator.of(context).pop();
               Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(
@@ -51,6 +65,8 @@ class DashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final String formattedUserName = _capitalize(userName); 
+    
     return Scaffold(
       backgroundColor: Colors.white,
       body: Column(
@@ -168,7 +184,7 @@ class DashboardScreen extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              userName,
+                              formattedUserName, 
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 17.5,
@@ -197,8 +213,8 @@ class DashboardScreen extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 18.5, vertical: 0),
             child: Row(
-              children: const [
-                Expanded(
+              children: [
+                const Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -221,7 +237,7 @@ class DashboardScreen extends StatelessWidget {
                     ],
                   ),
                 ),
-                _RoleButtonSmall(),
+                _RoleButtonSmall(userRole: userRole), 
               ],
             ),
           ),
@@ -294,6 +310,7 @@ class DashboardScreen extends StatelessWidget {
                           builder: (context) => ExamFormalitiesScreen(
                             userName: userName,
                             userEmail: userEmail,
+                            userRole: userRole, 
                           ),
                         ),
                       );
@@ -474,6 +491,7 @@ class DashboardScreen extends StatelessWidget {
                   builder: (_) => BankDetailsScreen(
                     userName: userName,
                     userEmail: userEmail,
+                    userRole: userRole, 
                   ),
                 ),
               );
@@ -483,6 +501,7 @@ class DashboardScreen extends StatelessWidget {
             icon: Icons.account_balance_wallet_rounded,
             label: "Honorarium Status",
             onTap: () {
+              // NOTE: If HonorariumStatusScreen exists, update navigation here.
               debugPrint("Honorarium tapped");
             },
           ),
@@ -490,6 +509,7 @@ class DashboardScreen extends StatelessWidget {
             icon: Icons.person_rounded,
             label: "My Profile",
             onTap: () {
+              // NOTE: If MyProfileScreen exists, update navigation here.
               debugPrint("Profile tapped");
             },
           ),
@@ -502,7 +522,7 @@ class DashboardScreen extends StatelessWidget {
 class _NavItem extends StatelessWidget {
   final IconData icon;
   final String label;
-  final VoidCallback onTap;
+  final VoidCallback onTap; 
 
   const _NavItem({
     required this.icon,
@@ -539,10 +559,38 @@ class _NavItem extends StatelessWidget {
 }
 
 class _RoleButtonSmall extends StatelessWidget {
-  const _RoleButtonSmall();
+  // 🚨 NEW: Requires the userRole string
+  final String userRole; 
+
+  const _RoleButtonSmall({required this.userRole});
 
   @override
   Widget build(BuildContext context) {
+    // 🚨 FIX: ROBUST ROLE FORMATTING LOGIC
+    // 1. Sanitize the string by replacing common separators (like underscores) with spaces,
+    // and ensuring it's lowercased before capitalization.
+    String cleanRole = userRole
+        .replaceAll('_', ' ')                   // Handle snake_case like super_proctor
+        .replaceAll(RegExp(r'(?<=[a-z])(?=[A-Z])'), ' ') // Handle camelCase like SuperProctor
+        .trim();
+
+    // 2. Capitalize each word, resolving issues like '$1' and lowercase roles.
+    String displayRole = cleanRole
+        .split(' ')
+        .map((word) => _capitalize(word))
+        .join(' ');
+        
+    // Handle the case where Firestore returned an empty/misspelled role.
+    if (displayRole.isEmpty) {
+        displayRole = 'Guest'; 
+    }
+    
+    // Fallback check to correct "Guest" if the user should be Admin/SuperProctor 
+    // (This relies on correct Firestore data)
+    if (userRole.toLowerCase().contains('admin')) {
+        displayRole = 'Admin';
+    }
+
     return Container(
       margin: const EdgeInsets.only(left: 7, right: 6),
       child: ElevatedButton(
@@ -565,7 +613,7 @@ class _RoleButtonSmall extends StatelessWidget {
             fontWeight: FontWeight.w700,
           ),
         ),
-        child: const Text("Role"),
+        child: Text(displayRole), // 🚨 DISPLAY THE DYNAMIC ROLE
       ),
     );
   }

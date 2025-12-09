@@ -12,11 +12,13 @@ final CollectionReference feedbackCollection =
 class FeedbackFormScreen extends StatefulWidget {
   final String userName;
   final String userEmail;
+  final String userRole;
 
   const FeedbackFormScreen({
     super.key,
     required this.userName,
     required this.userEmail,
+    required this.userRole,
   });
 
   @override
@@ -58,6 +60,7 @@ class _FeedbackFormScreenState extends State<FeedbackFormScreen> {
     final newFeedback = FeedbackModel(
       userName: widget.userName,
       userEmail: widget.userEmail,
+      userRole: widget.userRole,
       overallRating: _overallRating,
       q1PowerSupply: _q1Controller.text.trim(),
       q2PowerBackup: _q2Controller.text.trim(),

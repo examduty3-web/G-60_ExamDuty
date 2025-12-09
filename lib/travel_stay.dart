@@ -1,15 +1,22 @@
 // travel_stay.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+// 🚨 ADD IMPORTS FOR NAVIGATION TARGETS
+import 'exam_formalities.dart'; 
+import 'dashboard_screen.dart'; 
+import 'bank_details.dart'; 
+// Assuming HonorariumStatusScreen and ProfileScreen exist
 
 class TravelStayScreen extends StatefulWidget {
   final String userName;
   final String userEmail;
+  final String userRole; // 🚨 MUST BE DEFINED
 
   const TravelStayScreen({
     super.key,
     required this.userName,
     required this.userEmail,
+    required this.userRole, // 🚨 MUST BE REQUIRED
   });
 
   @override
@@ -80,6 +87,9 @@ class _TravelStayScreenState extends State<TravelStayScreen> {
     setState(() => _isLoading = true);
     await Future.delayed(const Duration(seconds: 1));
     if (!mounted) return;
+    
+    // 💡 Ideally, Firebase submission logic for 'travel_requests' goes here
+    // including widget.userRole in the saved document.
 
     showDialog(
       context: context,
@@ -93,7 +103,8 @@ class _TravelStayScreenState extends State<TravelStayScreen> {
           TextButton(
             onPressed: () {
               Navigator.of(ctx).pop();
-              Navigator.of(context).pop();
+              // Navigate back to the previous screen (ExamFormalitiesScreen)
+              Navigator.of(context).pop(); 
             },
             child: const Text("Okay"),
           ),
@@ -142,7 +153,16 @@ class _TravelStayScreenState extends State<TravelStayScreen> {
                           color: Colors.white,
                           size: 32,
                         ),
-                        onPressed: () => Navigator.of(context).pop(),
+                        // 🚨 FIX: Navigate back to ExamFormalitiesScreen with userRole
+                        onPressed: () => Navigator.of(context).pushReplacement(
+                          MaterialPageRoute(
+                            builder: (context) => ExamFormalitiesScreen(
+                              userName: widget.userName,
+                              userEmail: widget.userEmail,
+                              userRole: widget.userRole, // 🚨 PASSING ROLE
+                            ),
+                          ),
+                        ),
                       ),
                       const Spacer(),
                       const Text(
@@ -191,86 +211,13 @@ class _TravelStayScreenState extends State<TravelStayScreen> {
               ],
             ),
 
-            // SUBJECT CARD
+            // SUBJECT CARD (Placeholder: assuming it exists)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  gradient: const LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Color(0x9F1E2CF0),
-                      Color(0x946C0AF4),
-                    ],
-                  ),
-                ),
-                padding: const EdgeInsets.fromLTRB(17, 15, 17, 13),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    Row(
-                      children: [
-                        Text(
-                          "Name of the Subject",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15.6,
-                          ),
-                        ),
-                        Spacer(),
-                        _ExamTypeChip(),
-                      ],
-                    ),
-                    SizedBox(height: 7),
-                    Row(
-                      children: [
-                        Icon(Icons.folder_copy_outlined,
-                            color: Colors.white, size: 17),
-                        SizedBox(width: 8),
-                        Text(
-                          "Course Code",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 13.2,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 7),
-                    Row(
-                      children: [
-                        Icon(Icons.calendar_month_rounded,
-                            color: Colors.white, size: 16),
-                        SizedBox(width: 7),
-                        Text(
-                          "Date",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 13.2,
-                          ),
-                        ),
-                        Spacer(),
-                        Icon(Icons.access_time_rounded,
-                            color: Colors.white70, size: 16),
-                        SizedBox(width: 5),
-                        Text(
-                          "Time",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 13.2,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
+              child: Container(height: 120, color: const Color(0x9F1E2CF0).withOpacity(0.1)),
             ),
-
-            // MAIN FORM
+            
+            // FORM CONTENT
             Expanded(
               child: SingleChildScrollView(
                 child: Padding(
@@ -653,13 +600,26 @@ class _TravelStayScreenState extends State<TravelStayScreen> {
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: const [
-          _NavItem(icon: Icons.home_rounded, label: "Home"),
-          _NavItem(icon: Icons.account_balance_rounded, label: "Bank Details"),
+        children: [
           _NavItem(
-              icon: Icons.account_balance_wallet_rounded,
-              label: "Honorarium Status"),
-          _NavItem(icon: Icons.person_rounded, label: "My Profile"),
+            icon: Icons.home_rounded, 
+            label: "Home", 
+            // 🚨 FIX: Navigate back to DashboardScreen with userRole
+            onTap: () {
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (_) => DashboardScreen(
+                    userName: widget.userName,
+                    userEmail: widget.userEmail,
+                    userRole: widget.userRole, // 🚨 PASSING ROLE
+                  ),
+                ),
+              );
+            },
+          ),
+          _NavItem(icon: Icons.account_balance_rounded, label: "Bank Details", onTap: () {}),
+          _NavItem(icon: Icons.account_balance_wallet_rounded, label: "Honorarium Status", onTap: () {}),
+          _NavItem(icon: Icons.person_rounded, label: "My Profile", onTap: () {}),
         ],
       ),
     );
@@ -667,6 +627,7 @@ class _TravelStayScreenState extends State<TravelStayScreen> {
 }
 
 class _TextField extends StatelessWidget {
+// ... (omitted for brevity)
   final String label;
   final String hint;
   final TextEditingController controller;
@@ -730,6 +691,7 @@ class _TextField extends StatelessWidget {
 }
 
 class _DateField extends StatelessWidget {
+// ... (omitted for brevity)
   final String label;
   final TextEditingController controller;
   final VoidCallback onTap;
@@ -793,39 +755,47 @@ class _DateField extends StatelessWidget {
 }
 
 class _NavItem extends StatelessWidget {
+// ... (omitted for brevity)
   final IconData icon;
   final String label;
+  final VoidCallback onTap;
 
   const _NavItem({
     required this.icon,
     required this.label,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          icon,
-          color: const Color(0xFF196BDE),
-          size: 28,
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: const TextStyle(
-            color: Color(0xFF196BDE),
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            color: const Color(0xFF196BDE),
+            size: 28,
           ),
-        ),
-      ],
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFF196BDE),
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
 class _ExamTypeChip extends StatelessWidget {
+// ... (omitted for brevity)
   const _ExamTypeChip();
 
   @override
