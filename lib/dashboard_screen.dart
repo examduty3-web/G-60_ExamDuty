@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'login_screen.dart';
 import 'exam_formalities.dart';
 import 'bank_details.dart';
+import 'honorarium_status.dart';
 // Note: Ensure placeholder files for HonorariumStatusScreen and MyProfileScreen 
 // are created and accept the three required parameters.
 
@@ -498,13 +500,29 @@ class DashboardScreen extends StatelessWidget {
             },
           ),
           _NavItem(
-            icon: Icons.account_balance_wallet_rounded,
-            label: "Honorarium Status",
-            onTap: () {
-              // NOTE: If HonorariumStatusScreen exists, update navigation here.
-              debugPrint("Honorarium tapped");
-            },
-          ),
+  icon: Icons.account_balance_wallet_rounded,
+  label: "Honorarium Status",
+  onTap: () {
+    // 🚨 OLD: debugPrint("Honorarium tapped");
+    
+    // 🚨 NEW: Navigation code must be implemented here:
+    // 1. Get the current user's UID (Required for fetching status)
+    final currentUserId = FirebaseAuth.instance.currentUser!.uid;
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => HonorariumStatusScreen(
+          userName: userName,   // assuming these are class/widget properties
+          userEmail: userEmail, // assuming these are class/widget properties
+          userRole: userRole,   // assuming these are class/widget properties
+          
+          // 🚨 CRITICAL FIX: Pass the current user's UID
+          userId: currentUserId, 
+        ),
+      ),
+    );
+  },
+),
           _NavItem(
             icon: Icons.person_rounded,
             label: "My Profile",

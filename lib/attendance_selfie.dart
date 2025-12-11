@@ -3,18 +3,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import 'package:geolocator/geolocator.dart'; // Location
-
 import 'package:image_picker/image_picker.dart'; // Camera
-
 import 'package:firebase_storage/firebase_storage.dart'; // Storage
-
 import 'package:cloud_firestore/cloud_firestore.dart'; // Database
-
 import 'package:firebase_auth/firebase_auth.dart'; // Auth UID
 
 
 import 'exam_formalities.dart';
-
 import 'login_screen.dart'; // used if user needs to be redirected to login
 
 
@@ -22,15 +17,14 @@ import 'login_screen.dart'; // used if user needs to be redirected to login
 class AttendanceSelfieScreen extends StatefulWidget {
   final String userName;
   final String userEmail;
-  final String userRole; // 🚨 MUST BE DEFINED
+  final String userRole; 
 
   const AttendanceSelfieScreen({
     super.key,
     required this.userName,
     required this.userEmail,
-    required this.userRole, // 🚨 MUST BE REQUIRED
+    required this.userRole, 
   });
-// ...
 
   @override
   State<AttendanceSelfieScreen> createState() => _AttendanceSelfieScreenState();
@@ -79,7 +73,7 @@ class _AttendanceSelfieScreenState extends State<AttendanceSelfieScreen> {
     });
 
     try {
-      // 1) Get current location
+      // 1) Get current location (Assuming permissions are now granted on the device)
       _currentPosition = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
@@ -96,13 +90,15 @@ class _AttendanceSelfieScreenState extends State<AttendanceSelfieScreen> {
       _selfieFile = File(picked.path);
 
       // 3) Upload to Firebase Storage
+      // 🚨 CRITICAL FIX: The file path must match the Storage Security Rule
       final String filePath =
-          'uploads/${user.uid}/selfies/${DateTime.now().millisecondsSinceEpoch}.jpg';
+          'attendance_selfies/${user.uid}/${DateTime.now().millisecondsSinceEpoch}.jpg';
+          
       final Reference storageRef = FirebaseStorage.instance.ref(filePath);
       await storageRef.putFile(_selfieFile!);
       final String downloadUrl = await storageRef.getDownloadURL();
 
-      // 4) Save record to Firestore (Adding userRole here for completeness)
+      // 4) Save record to Firestore 
       await FirebaseFirestore.instance.collection('exam_duties').add({
         'userId': user.uid,
         'email': user.email ?? widget.userEmail,
@@ -115,7 +111,7 @@ class _AttendanceSelfieScreenState extends State<AttendanceSelfieScreen> {
           'accuracy': _currentPosition!.accuracy,
         },
         'submittedBy': widget.userName,
-        'userRole': widget.userRole, // 🚨 ADDED ROLE TO FIRESTORE SUBMISSION
+        'userRole': widget.userRole,
       });
 
       setState(() {
@@ -123,6 +119,7 @@ class _AttendanceSelfieScreenState extends State<AttendanceSelfieScreen> {
             'Attendance submitted successfully! Location: ${_currentPosition!.latitude.toStringAsFixed(3)}, ${_currentPosition!.longitude.toStringAsFixed(3)}';
       });
     } catch (e, st) {
+      // Now correctly handles the Firebase Storage authorization error
       setState(() {
         _statusMessage = 'Submission Failed: ${e.toString()}';
       });
@@ -183,12 +180,12 @@ class _AttendanceSelfieScreenState extends State<AttendanceSelfieScreen> {
                         icon: const Icon(Icons.arrow_back,
                             color: Colors.white, size: 32),
                         onPressed: () => Navigator.of(context).pushReplacement(
-                          // 🚨 UPDATED: Pass userRole back to ExamFormalitiesScreen
+                          // UPDATED: Pass userRole back to ExamFormalitiesScreen
                           MaterialPageRoute(
                             builder: (context) => ExamFormalitiesScreen(
                               userName: widget.userName,
                               userEmail: widget.userEmail,
-                              userRole: widget.userRole, // 🚨 PASSED ROLE
+                              userRole: widget.userRole, 
                             ),
                           ),
                         ),
@@ -295,8 +292,8 @@ class _AttendanceSelfieScreenState extends State<AttendanceSelfieScreen> {
                                                   Icon(
                                                       Icons.camera_alt_rounded,
                                                       size: 38,
-                                                      color:
-                                                          Color(0xFFB0B2BC)),
+                                                      color: Color(
+                                                          0xFFB0B2BC)),
                                                   SizedBox(height: 8),
                                                   Text("Take a selfie",
                                                       style: TextStyle(

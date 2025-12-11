@@ -1,22 +1,30 @@
 // travel_stay.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+// 🚨 NEW IMPORTS FOR FIREBASE AND DATA
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'honorarium_model.dart';
+import 'honorarium_status.dart'; // Navigation target for status screen
+
 // 🚨 ADD IMPORTS FOR NAVIGATION TARGETS
 import 'exam_formalities.dart'; 
 import 'dashboard_screen.dart'; 
 import 'bank_details.dart'; 
-// Assuming HonorariumStatusScreen and ProfileScreen exist
+
+final CollectionReference honorariumCollection = 
+    FirebaseFirestore.instance.collection('honorariumSubmissions');
 
 class TravelStayScreen extends StatefulWidget {
   final String userName;
   final String userEmail;
-  final String userRole; // 🚨 MUST BE DEFINED
+  final String userRole; 
 
   const TravelStayScreen({
     super.key,
     required this.userName,
     required this.userEmail,
-    required this.userRole, // 🚨 MUST BE REQUIRED
+    required this.userRole, 
   });
 
   @override
@@ -26,38 +34,31 @@ class TravelStayScreen extends StatefulWidget {
 class _TravelStayScreenState extends State<TravelStayScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  String? _travelRequired;        // "yes" / "no"
-  String? _accommodationRequired; // "yes" / "no"
+  String? _travelRequired;
+  String? _accommodationRequired; 
 
   final _preferredModeController = TextEditingController();
   final _departureCityController = TextEditingController();
-  final _departureDateController = TextEditingController();
+  final _departureDateController = TextEditingController(); // This stores travel date
   final _accommodationTypeController = TextEditingController();
-  final _checkInDateController = TextEditingController();
+  final _checkInDateController = TextEditingController(); // This stores stay date
   final _contactInfoController = TextEditingController();
   final _specialReqController = TextEditingController();
 
   bool _isLoading = false;
 
   bool get _canSubmit {
-    // Contact info must be valid 10‑digit number
+    if (_isLoading) return false;
+    // Perform basic validation before checking form key
     if (_contactInfoController.text.trim().length != 10) return false;
 
-    // Travel section
     if (_travelRequired == null) return false;
-    if (_travelRequired == "yes") {
-      if (_preferredModeController.text.trim().isEmpty) return false;
-      if (_departureCityController.text.trim().isEmpty) return false;
-      if (_departureDateController.text.trim().isEmpty) return false;
-    }
-
-    // Accommodation section
     if (_accommodationRequired == null) return false;
-    if (_accommodationRequired == "yes") {
-      if (_accommodationTypeController.text.trim().isEmpty) return false;
-      if (_checkInDateController.text.trim().isEmpty) return false;
-    }
 
+    // Must validate the form fields as well
+    // Note: We skip calling _formKey.currentState!.validate() here to avoid constant validation popups
+    // The Submit button onTap will handle the full validation.
+    
     return true;
   }
 
@@ -79,40 +80,117 @@ class _TravelStayScreenState extends State<TravelStayScreen> {
       setState(() {});
     }
   }
-
+  
+  // 🚨 CRITICAL FIX: Implement Firebase Submission Logic
   Future<void> _submitRequirements() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      // Show snackbar if validation fails silently
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please fill all required fields correctly.")),
+      );
+      return;
+    }
     if (!_canSubmit) return;
 
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      // Should not happen if authenticated route is set up, but safe fallback.
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Authentication error. Please log in again.")),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(seconds: 1));
-    if (!mounted) return;
+    final String uid = user.uid;
     
-    // 💡 Ideally, Firebase submission logic for 'travel_requests' goes here
-    // including widget.userRole in the saved document.
+    // --- 1. Prepare Data ---
+    // Travel Details
+    final String travelDetails = _travelRequired == 'yes' 
+        ? "Mode: ${_preferredModeController.text}, City: ${_departureCityController.text}"
+        : "None required/Self-arranged";
+    final String travelDate = _travelRequired == 'yes' 
+        ? _departureDateController.text : 'N/A';
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: const Text("Request Submitted"),
-        content: const Text(
-          "Your travel and accommodation requirements have been submitted successfully.",
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              // Navigate back to the previous screen (ExamFormalitiesScreen)
-              Navigator.of(context).pop(); 
-            },
-            child: const Text("Okay"),
+    // Accommodation Details
+    final String stayDetails = _accommodationRequired == 'yes' 
+        ? "Type: ${_accommodationTypeController.text}"
+        : "None required/Self-arranged";
+    final String stayDate = _accommodationRequired == 'yes' 
+        ? _checkInDateController.text : 'N/A';
+    
+    // --- 2. Build Honorarium Model Data (CRITICAL for Admin Review) ---
+    final Map<String, dynamic> submissionData = {
+      'userId': uid,
+      'userName': widget.userName,
+      'userEmail': widget.userEmail,
+      'userRole': widget.userRole,
+      'contactInfo': _contactInfoController.text.trim(),
+      'specialRequirements': _specialReqController.text.trim(),
+
+      // Travel fields (Model requires these for review dialog)
+      'travelDetails': travelDetails,
+      'travelDate': travelDate,
+      'travelStatus': 'Pending', 
+      'travelAmount': 0.0, // Initial amount is zero
+
+      // Stay fields
+      'stayDetails': stayDetails,
+      'stayDate': stayDate,
+      'stayStatus': 'Pending',
+      'stayAmount': 0.0, // Initial amount is zero
+
+      // Overall status fields (for summary/status screens)
+      'overallApprovalStatus': 'Pending', 
+      'allocatedAmount': 0.0,
+      'submissionDate': FieldValue.serverTimestamp(),
+    };
+
+    // --- 3. Save to Firestore ---
+    try {
+      // Use set() to overwrite/create the document using UID as the ID
+      await honorariumCollection.doc(uid).set(submissionData);
+      
+      if (!mounted) return;
+      
+      // --- 4. Show Success Dialog and Navigate ---
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          title: const Text("Request Submitted"),
+          content: const Text(
+            "Your travel and accommodation requirements have been submitted for admin review. You can check the status now.",
           ),
-        ],
-      ),
-    );
-
-    setState(() => _isLoading = false);
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                // Navigate to Honorarium Status Screen
+                Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(
+                    builder: (context) => HonorariumStatusScreen(
+                      userName: widget.userName,
+                      userEmail: widget.userEmail,
+                      userRole: widget.userRole,
+                      userId: uid,
+                    ),
+                  ),
+                );
+              },
+              child: const Text("Check Status"),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to submit requirements: ${e.toString()}")),
+      );
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -135,7 +213,7 @@ class _TravelStayScreenState extends State<TravelStayScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // HEADER
+            // HEADER (Unchanged)
             Stack(
               children: [
                 Container(
@@ -153,13 +231,12 @@ class _TravelStayScreenState extends State<TravelStayScreen> {
                           color: Colors.white,
                           size: 32,
                         ),
-                        // 🚨 FIX: Navigate back to ExamFormalitiesScreen with userRole
                         onPressed: () => Navigator.of(context).pushReplacement(
                           MaterialPageRoute(
                             builder: (context) => ExamFormalitiesScreen(
                               userName: widget.userName,
                               userEmail: widget.userEmail,
-                              userRole: widget.userRole, // 🚨 PASSING ROLE
+                              userRole: widget.userRole, 
                             ),
                           ),
                         ),
@@ -418,7 +495,7 @@ class _TravelStayScreenState extends State<TravelStayScreen> {
                           if (_accommodationRequired == "yes")
                             const SizedBox(height: 18),
 
-                          // Contact info with India flag +91 and 10‑digit validation
+                          // Contact info with India flag +91 and 10-digit validation
                           const Text(
                             "Contact Information",
                             style: TextStyle(
@@ -617,17 +694,23 @@ class _TravelStayScreenState extends State<TravelStayScreen> {
               );
             },
           ),
-          _NavItem(icon: Icons.account_balance_rounded, label: "Bank Details", onTap: () {}),
-          _NavItem(icon: Icons.account_balance_wallet_rounded, label: "Honorarium Status", onTap: () {}),
-          _NavItem(icon: Icons.person_rounded, label: "My Profile", onTap: () {}),
+          _NavItem(icon: Icons.account_balance_rounded, label: "Bank Details", onTap: () {
+             // 💡 TODO: Navigate to BankDetailsScreen
+          }),
+          _NavItem(icon: Icons.account_balance_wallet_rounded, label: "Honorarium Status", onTap: () {
+             // 💡 TODO: Navigate to HonorariumStatusScreen
+          }),
+          _NavItem(icon: Icons.person_rounded, label: "My Profile", onTap: () {
+            // 💡 TODO: Navigate to ProfileScreen
+          }),
         ],
       ),
     );
   }
 }
 
+// Replicating helper classes needed by the main widget
 class _TextField extends StatelessWidget {
-// ... (omitted for brevity)
   final String label;
   final String hint;
   final TextEditingController controller;
@@ -691,7 +774,6 @@ class _TextField extends StatelessWidget {
 }
 
 class _DateField extends StatelessWidget {
-// ... (omitted for brevity)
   final String label;
   final TextEditingController controller;
   final VoidCallback onTap;
@@ -755,7 +837,6 @@ class _DateField extends StatelessWidget {
 }
 
 class _NavItem extends StatelessWidget {
-// ... (omitted for brevity)
   final IconData icon;
   final String label;
   final VoidCallback onTap;
@@ -789,30 +870,6 @@ class _NavItem extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _ExamTypeChip extends StatelessWidget {
-// ... (omitted for brevity)
-  const _ExamTypeChip();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(13),
-      ),
-      child: const Text(
-        "Exam Type",
-        style: TextStyle(
-          color: Colors.black,
-          fontWeight: FontWeight.bold,
-          fontSize: 14,
-        ),
       ),
     );
   }

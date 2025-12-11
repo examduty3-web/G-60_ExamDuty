@@ -1,21 +1,21 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:http/http.dart' as http;
-// 🚨 NEW IMPORTS for Role Check
+import 'package:firebase_storage/firebase_storage.dart'; 
+import 'package:cloud_firestore/cloud_firestore.dart'; 
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dashboard_screen.dart'; // Assuming navigation leads back here
 
 class InvigilationFormScreen extends StatefulWidget {
   final String userName;
   final String userEmail;
-  final String userRole; // 🚨 MUST BE DEFINED
+  final String userRole; 
 
   const InvigilationFormScreen({
     super.key,
     required this.userName,
     required this.userEmail,
-    required this.userRole, // 🚨 MUST BE REQUIRED
+    required this.userRole, 
   });
 
   @override
@@ -31,109 +31,92 @@ class _InvigilationFormScreenState extends State<InvigilationFormScreen> {
 
   File? _selectedFile;
   bool _isLoading = false;
-
-  // 🚨 NEW ROLE VARIABLES
-  bool _isSuperProctor = false;
-  bool _isRoleLoading = true;
-  // ⚠️ ASSUMPTION: The user's role is stored in a Firestore collection named 'user_roles' 
-  // with a document ID matching the UID and a field like 'role': 'SuperProctor'.
+  
+  // Security: Determine privilege based on the passed userRole
+  late bool _isSuperProctor;
 
   @override
   void initState() {
     super.initState();
-    _checkUserRole();
+    // Use passed widget.userRole (trusted from the login screen)
+    _isSuperProctor = widget.userRole.toLowerCase() == 'superproctor';
   }
-
-  // 🚨 ROLE CHECKING LOGIC
-  Future<void> _checkUserRole() async {
-    final user = FirebaseAuth.instance.currentUser;
-
-    if (user != null) {
-      try {
-        final roleSnapshot = await FirebaseFirestore.instance
-            .collection('user_roles') // ⚠️ Use your ACTUAL role collection name here
-            .doc(user.uid)
-            .get();
-
-        if (mounted) {
-          final role = roleSnapshot.data()?['role']; // Assuming role field is named 'role'
-          
-          setState(() {
-            // Check if the role is exactly 'SuperProctor'
-            _isSuperProctor = (role == 'SuperProctor'); 
-          });
-        }
-      } catch (e) {
-        print("Error fetching user role: $e");
-      }
-    }
-
-    if (mounted) {
-      setState(() {
-        _isRoleLoading = false;
-      });
-    }
-  }
-
 
   Future<void> _pickFile() async {
+    // Note: This relies on dart:io being available (i.e., running on Android/iOS/Desktop)
     FilePickerResult? result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['jpg', 'pdf', 'doc', 'png'],
+      allowedExtensions: ['pdf', 'doc', 'docx', 'jpg', 'png'],
     );
 
     if (result != null && result.files.single.path != null) {
       setState(() {
+        // Ensure the path is converted to a dart:io File object
         _selectedFile = File(result.files.single.path!);
       });
     }
   }
 
-  Future<void> _submitFormToBackend() async {
+  // CRITICAL: Submission logic to Firebase Storage and Firestore
+  Future<void> _submitFormToFirebase() async {
     if (!_formKey.currentState!.validate() || _selectedFile == null) return;
 
     setState(() {
       _isLoading = true;
     });
 
-    final uri = Uri.parse('http://10.0.2.2:3000/submit-form'); // Adjust as needed
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      _showErrorSnackBar('User not authenticated.');
+      setState(() => _isLoading = false); 
+      return;
+    }
 
     try {
-      final request = http.MultipartRequest('POST', uri);
-
-      // Include all form fields
-      request.fields['userName'] = widget.userName;
-      request.fields['userEmail'] = widget.userEmail;
-      request.fields['examDate'] = _examDateController.text.trim();
-      request.fields['examSlot'] = _examSlotController.text.trim();
-      request.fields['examType'] = _examTypeController.text.trim();
-      request.fields['numStudents'] = _numStudentsController.text.trim();
+      // 1. Define Storage Reference (Unique Path)
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
+      // Define path: invigilation_forms/[user_uid]/[unique_filename]
+      final fileName = '${uid}_invigilation_${timestamp}.pdf';
+      final storagePath = 'invigilation_forms/$uid/$fileName';
       
-      // Include the file
-      request.files.add(
-        await http.MultipartFile.fromPath(
-          'invigilation_file',
-          _selectedFile!.path,
-        ),
-      );
+      final storageRef = FirebaseStorage.instance.ref().child(storagePath);
 
-      final response = await request.send();
+      // 2. Upload File using putFile()
+      final uploadTask = storageRef.putFile(_selectedFile!);
+      final snapshot = await uploadTask.whenComplete(() {});
+      final fileUrl = await snapshot.ref.getDownloadURL(); // Get the public URL
+
+      // 3. Save Form Metadata to Firestore
+      await FirebaseFirestore.instance.collection('exam_submissions').doc(uid).set({
+        'invigilationFormSubmitted': true,
+        'invigilationFileUrl': fileUrl, // Saved URL for Admin access
+        'examDate': _examDateController.text.trim(),
+        'examSlot': _examSlotController.text.trim(),
+        'examType': _examTypeController.text.trim(),
+        'numStudents': int.tryParse(_numStudentsController.text.trim()),
+        'userName': widget.userName,
+        'userEmail': widget.userEmail,
+        'userRole': widget.userRole,
+        'submissionTimestamp': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
 
       if (!mounted) return;
+      _showSubmitSuccess(context);
 
-      if (response.statusCode == 200) {
-        _showSubmitSuccess(context);
-      } else {
-        _showErrorSnackBar('Server Error: ${response.statusCode}');
-      }
+    } on FirebaseException catch (e) {
+      // Catch specific Firebase errors (permissions, quota, etc.)
+      print("Firebase Storage Error: ${e.code} / ${e.message}");
+      _showErrorSnackBar('Upload Failed: ${e.code}. Check Firebase Console.');
     } catch (e) {
+      // Catch general errors (network disconnection, file reading issues)
       if (mounted) {
-        _showErrorSnackBar('Connection Error: $e');
+        _showErrorSnackBar('General Error during upload: ${e.toString()}');
       }
     } finally {
+      // GUARANTEE STATE RESET
       if (mounted) {
         setState(() {
-          _isLoading = false;
+          _isLoading = false; 
         });
       }
     }
@@ -152,13 +135,14 @@ class _InvigilationFormScreenState extends State<InvigilationFormScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text("Success"),
         content: const Text(
-          "Invigilation Form has been submitted successfully to the server.",
+          "Invigilation Form and file have been submitted successfully.",
         ),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.of(ctx).pop();
-              Navigator.of(context).pop();
+              // Navigate back to the Dashboard screen
+              Navigator.of(context).pop(); 
             },
             child: const Text("Okay"),
           ),
@@ -178,7 +162,6 @@ class _InvigilationFormScreenState extends State<InvigilationFormScreen> {
   void dispose() {
     _examDateController.dispose();
     _examSlotController.dispose();
-    _examSlotController.dispose(); // Changed from examSlotController to prevent double dispose
     _examTypeController.dispose();
     _numStudentsController.dispose();
     super.dispose();
@@ -186,14 +169,8 @@ class _InvigilationFormScreenState extends State<InvigilationFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 🚨 1. HANDLE LOADING STATE
-    if (_isRoleLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
     
-    // 🚨 2. HANDLE ACCESS DENIAL (If user is Observer or not logged in)
+    // HANDLE ACCESS DENIAL (If user is not Super Proctor)
     if (!_isSuperProctor) {
       return Scaffold(
         appBar: AppBar(title: const Text("Access Denied")),
@@ -222,14 +199,14 @@ class _InvigilationFormScreenState extends State<InvigilationFormScreen> {
       );
     }
 
-    // 🚨 3. SHOW FORM CONTENT (If Super Proctor)
+    // SHOW FORM CONTENT (If Super Proctor)
     return Scaffold(
       backgroundColor: Colors.white,
       bottomNavigationBar: _buildBottomBarRounded(context),
       body: SafeArea(
         child: Column(
           children: [
-            // Header Stack
+            // Header Stack 
             Stack(
               children: [
                 Container(
@@ -296,7 +273,7 @@ class _InvigilationFormScreenState extends State<InvigilationFormScreen> {
               ],
             ),
 
-            // Subject Card
+            // Subject Card (Styling details)
             Padding(
               padding:
                   const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
@@ -510,9 +487,10 @@ class _InvigilationFormScreenState extends State<InvigilationFormScreen> {
                                       ),
                                       elevation: 0,
                                     ),
+                                    // CRITICAL FIX: Call the Firebase submission function
                                     onPressed:
                                         (_canSubmit && !_isLoading)
-                                            ? _submitFormToBackend
+                                            ? _submitFormToFirebase
                                             : null,
                                   ),
                                 ),
@@ -556,7 +534,8 @@ class _InvigilationFormScreenState extends State<InvigilationFormScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _NavItem(icon: Icons.home_rounded, label: "Home", onTap: () {}),
+          // NavItems: Ensure all NavItems use the correct onTap navigation
+          _NavItem(icon: Icons.home_rounded, label: "Home", onTap: () => Navigator.of(context).pop()),
           _NavItem(icon: Icons.account_balance_rounded, label: "Bank Details", onTap: () {}),
           _NavItem(icon: Icons.account_balance_wallet_rounded, label: "Honorarium Status", onTap: () {}),
           _NavItem(icon: Icons.person_rounded, label: "My Profile", onTap: () {}),

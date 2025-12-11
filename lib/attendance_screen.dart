@@ -12,11 +12,14 @@ import 'login_screen.dart'; // to navigate user to login if needed
 class AttendanceSelfieScreen extends StatefulWidget {
   final String userName;
   final String userEmail;
+  // 🚨 ADDED: New required parameter
+  final String userRole;
 
   const AttendanceSelfieScreen({
     super.key,
     required this.userName,
     required this.userEmail,
+    required this.userRole, // 🚨 ADDED
   });
 
   @override
@@ -43,7 +46,6 @@ class _AttendanceSelfieScreenState extends State<AttendanceSelfieScreen> {
 
   Future<void> _checkPermissions() async {
     // For production: check location and camera permissions and request if needed.
-    // This is simplified to allow UI testing.
     _statusMessage = 'Ready to capture attendance.';
     setState(() {});
   }
@@ -75,7 +77,6 @@ class _AttendanceSelfieScreenState extends State<AttendanceSelfieScreen> {
           desiredAccuracy: LocationAccuracy.high);
 
       // --- 2) Take selfie ---
-      // On web: ImageSource.camera may not work. Wrap with try/catch.
       final XFile? picked = await _picker.pickImage(source: ImageSource.camera);
       if (picked == null) {
         setState(() {
@@ -110,6 +111,7 @@ class _AttendanceSelfieScreenState extends State<AttendanceSelfieScreen> {
         },
         // Optional handy fields:
         'submittedBy': widget.userName,
+        'userRole': widget.userRole, // 🚨 ADDED ROLE TO FIRESTORE SUBMISSION
       });
 
       setState(() {
@@ -175,9 +177,13 @@ class _AttendanceSelfieScreenState extends State<AttendanceSelfieScreen> {
                       IconButton(
                         icon: const Icon(Icons.arrow_back, color: Colors.white, size: 32),
                         onPressed: () => Navigator.of(context).pushReplacement(
+                          // 🚨 UPDATED: Pass userRole back to ExamFormalitiesScreen
                           MaterialPageRoute(
                             builder: (context) => ExamFormalitiesScreen(
-                                userName: widget.userName, userEmail: widget.userEmail),
+                              userName: widget.userName, 
+                              userEmail: widget.userEmail,
+                              userRole: widget.userRole, // 🚨 PASSED ROLE
+                            ),
                           ),
                         ),
                       ),
@@ -289,7 +295,7 @@ class _AttendanceSelfieScreenState extends State<AttendanceSelfieScreen> {
                             const SizedBox(height: 12),
                             // Small signed-in info (if available)
                             if (firebaseUser != null)
-                              Center(child: Text('Signed in as: ${firebaseUser.email ?? widget.userEmail}', style: const TextStyle(color: Colors.black54))),
+                              Center(child: Text('Signed in as: ${firebaseUser.email ?? widget.userEmail} (Role: ${widget.userRole})', style: const TextStyle(color: Colors.black54))),
                             if (firebaseUser == null)
                               Center(child: Text('Not signed in. Using: ${widget.userEmail}', style: const TextStyle(color: Colors.black45))),
                             const SizedBox(height: 12),
@@ -309,7 +315,7 @@ class _AttendanceSelfieScreenState extends State<AttendanceSelfieScreen> {
                                   Text("• Location will be automatically captured", style: TextStyle(fontSize: 13.1)),
                                 ],
                               ),
-                            ),
+                            )
                           ],
                         ),
                       ),

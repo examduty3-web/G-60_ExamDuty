@@ -1,18 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-<<<<<<< HEAD
-<uses-permission android:name="android.permission.INTERNET"/>
-<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
-<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
-<uses-permission android:name="android.permission.CAMERA"/>
-=======
-
     
-    <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.CAMERA" />
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.CAMERA"/>
 
->>>>>>> 3276b96b64ff6cd944d07305a74184d60469bfe4
     <application
         android:label="exam_duty_app"
         android:name="${applicationName}"
@@ -33,7 +25,7 @@
 
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-                ategory android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LAUNCHER" /> 
             </intent-filter>
         </activity>
 

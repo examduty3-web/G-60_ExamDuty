@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'admin_login.dart';
 import 'submission_tracking.dart';
 import 'feedback_summary.dart';
+import 'honorarium_summary.dart';
 // 🚨 NEW IMPORTS FOR ADMIN CHECK
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -374,7 +375,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           _actionCard(
             title: "Honorarium Summary",
             subtitle: "Submit: Your Accomodation Details",
-            onTap: () {},
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => HonorariumSummaryScreen(
+                    userName: widget.userName,
+                    userEmail: widget.userEmail,
+                    userRole: widget.userRole, // 🚨 PASSING ROLE
+                  ),
+                ),
+              );
+            },
           ),
           const Spacer(),
         ],
