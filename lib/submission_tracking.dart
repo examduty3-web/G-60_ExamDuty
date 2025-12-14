@@ -1,3 +1,4 @@
+// submission_tracking_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; 
 import 'package:url_launcher/url_launcher.dart'; 
@@ -12,20 +13,29 @@ const Color accentOrange = Color(0xFFFF9800);
 const Color darkGreyText = Color(0xFF65657E);
 const Color lightGreyBackground = Color(0xFFF0F0F0); 
 
-// --- DATA MODEL PLACEHOLDER ---
+// --- DATA MODEL ---
 class SubmissionData {
   final String userId;
-  final String name;
+  final String name; // This field holds the display name (Name OR Email)
   final String email;
   final String userRole; 
   final String subjectName; 
   
+  // Status flags
   final bool attendanceSubmitted;
   final bool invigilationFormSubmitted;
   final bool feedbackSubmitted;
   
+  // URLs/Content for popups
   final String? attendanceUrl; 
   final String? invigilationFileUrl; 
+  final String? feedbackContent; 
+  
+  // Invigilation Form Fields 
+  final String? examDate;
+  final String? examSlot;
+  final String? examType;
+  final int? numStudents;
 
   SubmissionData({
     required this.userId,
@@ -38,6 +48,11 @@ class SubmissionData {
     this.feedbackSubmitted = false,
     this.attendanceUrl,
     this.invigilationFileUrl,
+    this.feedbackContent,
+    this.examDate,
+    this.examSlot,
+    this.examType,
+    this.numStudents,
   });
 }
 
@@ -53,7 +68,7 @@ class SubmissionTrackingScreen extends StatelessWidget {
     required this.userRole, 
   });
 
-  // Function to open the URL in a browser/external app (Unchanged)
+  // Function to open the URL in a browser/external app 
   Future<void> _launchUrl(BuildContext context, String? url) async {
     if (url == null || url.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -77,46 +92,262 @@ class SubmissionTrackingScreen extends StatelessWidget {
     }
   }
 
-  // LOGIC FIX: Fetches ALL user submissions (Unchanged functional logic)
+  // ---------------- INTERACTIVE POPUPS ----------------
+
+  // Function to show the Attendance Image
+  void _showImageDialog(BuildContext context, String? imageUrl, String userName) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text("Attendance Proof: $userName"),
+        content: imageUrl != null && imageUrl.isNotEmpty
+            ? Image.network(
+                imageUrl,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return const SizedBox(
+                    height: 200, 
+                    child: Center(child: CircularProgressIndicator())
+                  );
+                },
+              )
+            : const SizedBox(height: 50, child: Center(child: Text("Attendance image not found."))),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text("Close")),
+        ],
+      ),
+    );
+  }
+
+  // Function to show the Feedback Content
+  void _showFeedbackDialog(BuildContext context, String? content, String userName) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text("Feedback from $userName"),
+        content: SingleChildScrollView(
+          child: Text(content ?? "No detailed feedback content available."),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text("Close")),
+        ],
+      ),
+    );
+  }
+
+  // NEW DIALOG: Shows Invigilation Form Data + File Link
+  void _showInvigilationFormDialog(BuildContext context, SubmissionData data) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text("Invigilation Form: ${data.name}"),
+        content: SingleChildScrollView(
+          child: ListBody(
+            children: <Widget>[
+              // Form Details
+              _detailRow("Date:", data.examDate ?? 'N/A'),
+              _detailRow("Slot:", data.examSlot ?? 'N/A'),
+              _detailRow("Type:", data.examType ?? 'N/A'),
+              _detailRow("Students:", data.numStudents?.toString() ?? 'N/A'),
+              const Divider(height: 20),
+
+              // File Download Link
+              if (data.invigilationFormSubmitted && data.invigilationFileUrl != null)
+                TextButton.icon(
+                  icon: const Icon(Icons.file_present_rounded),
+                  label: const Text("View/Download Uploaded Form"),
+                  onPressed: () => _launchUrl(context, data.invigilationFileUrl),
+                )
+              else
+                const Text("Uploaded file is missing or submission is pending."),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text("Close")),
+        ],
+      ),
+    );
+  }
+  
+  // Helper for the Dialog content
+  Widget _detailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+          const SizedBox(width: 8),
+          Flexible(child: Text(value, style: const TextStyle(fontSize: 14))),
+        ],
+      ),
+    );
+  }
+
+  // ---------------- DATA FETCHING LOGIC (Final Working Version - Multi-Collection Merge) ----------------
+
   Future<List<SubmissionData>> _fetchLiveSubmissions() async {
     final firestore = FirebaseFirestore.instance;
+    final Map<String, SubmissionData> submissionMap = {};
+
+    // --- 0. PRE-FETCH ALL STAFF (Source of Truth for User List/Name/Role) ---
+    final rolesSnapshot = await firestore.collection('user_roles').get();
+    final Map<String, Map<String, dynamic>> userRoles = {};
+    for (var doc in rolesSnapshot.docs) {
+      userRoles[doc.id] = doc.data();
+    }
     
-    final querySnapshot = await firestore.collection('exam_submissions').get();
-
-    final List<SubmissionData> submissions = [];
-
-    for (final doc in querySnapshot.docs) {
-      final data = doc.data();
+    // --- Initialize the Submission Map with ALL USERS ---
+    for (final userId in userRoles.keys) {
+      final profile = userRoles[userId]!;
       
-      final String docId = doc.id;
-      final String subName = data['userName'] ?? 'N/A Name'; 
-      final String subEmail = data['userEmail'] ?? 'N/A Email';
-      final String subRole = data['userRole'] ?? 'Unknown Role';
-      final String subjectIdentifier = "Subject: ${data['examType'] ?? 'N/A Type'} | Students: ${data['numStudents'] ?? 'N/A'}"; 
+      // FIX: Name Fallback (Name OR userName OR Email)
+      String profileName = profile['name'] as String? ?? profile['userName'] as String? ?? '';
+      String profileEmail = profile['email'] as String? ?? 'N/A Email';
+      
+      // Ensure we display Email if Name is missing
+      String finalDisplayName = (profileName.isEmpty) ? profileEmail : profileName;
 
-      submissions.add(
-        SubmissionData(
-          userId: docId,
-          name: subName,
-          email: subEmail,
-          userRole: subRole,
-          subjectName: subjectIdentifier,
-          
-          attendanceSubmitted: data['attendanceSubmitted'] == true,
-          invigilationFormSubmitted: data['invigilationFormSubmitted'] == true,
-          feedbackSubmitted: data['feedbackSubmitted'] == true || (data['feedbackId'] != null), 
-          
-          attendanceUrl: data['attendanceFileUrl'], 
-          invigilationFileUrl: data['invigilationFileUrl'],
-        ),
+
+      submissionMap[userId] = SubmissionData(
+        userId: userId,
+        name: finalDisplayName, 
+        email: profileEmail, 
+        userRole: profile['role'] as String? ?? 'Observer',
+        subjectName: 'No Duty Data', 
+        
+        // Statuses are initialized to false/pending
+        attendanceSubmitted: false,
+        invigilationFormSubmitted: false,
+        feedbackSubmitted: false,
       );
     }
     
-    return submissions; 
+    // --- 1. Merge INVIGILATION Data (from /exam_submissions) ---
+    // This collection holds the Invigilation form status and the Duty details.
+    final submissionsSnapshot = await firestore.collection('exam_submissions').get();
+
+    for (final doc in submissionsSnapshot.docs) {
+      final data = doc.data();
+      final String userId = doc.id;
+      final dynamic numStudentsRaw = data['numStudents'];
+      
+      if (submissionMap.containsKey(userId)) {
+          final existing = submissionMap[userId]!;
+
+          // Invigilation status is read from here
+          bool invigilationSub = data['invigilationFormSubmitted'] == true;
+          
+          // Update the existing record in the map
+          submissionMap[userId] = SubmissionData(
+            userId: userId,
+            name: existing.name, 
+            email: existing.email,
+            userRole: data['userRole'] as String? ?? existing.userRole, 
+            subjectName: data['examType'] as String? ?? 'N/A Subject',
+
+            // Statuses and URLs (Attendance/Feedback status will be overwritten next)
+            attendanceSubmitted: existing.attendanceSubmitted, // Keep old status for now
+            attendanceUrl: null, // Reset attendance URL as it's coming from /exam_duties
+            invigilationFormSubmitted: invigilationSub, 
+            invigilationFileUrl: data['invigilationFileUrl'] as String?,
+            
+            // Invigilation Form Fields 
+            examDate: data['examDate'] as String?,
+            examSlot: data['examSlot'] as String?,
+            examType: data['examType'] as String?,
+            numStudents: numStudentsRaw is int ? numStudentsRaw : (numStudentsRaw is String ? int.tryParse(numStudentsRaw) : null),
+            
+            feedbackSubmitted: existing.feedbackSubmitted, // Keep old status for now
+            feedbackContent: null,
+          );
+      }
+    }
+
+
+    // --- 2. Merge ATTENDANCE Data (from /exam_duties) ---
+    // Look up the LATEST attendance record for each user.
+    final attendanceSnapshot = await firestore.collection('exam_duties').get();
+    final Map<String, Map<String, dynamic>> attendanceDataMap = {};
+    
+    // Simplification: We need the LATEST attendance document for the URL/Status
+    // We group by userId and find the latest timestamp, or just grab the first one if we assume only one attendance per duty is relevant.
+    for (final doc in attendanceSnapshot.docs) {
+        final data = doc.data();
+        final String? userId = data['userId'] as String?;
+        if (userId != null && submissionMap.containsKey(userId)) {
+            // Assume the main attendance fields are nested under 'attendance'
+            final attendanceDetails = data['attendance'] as Map<String, dynamic>?;
+            if (attendanceDetails != null) {
+              // Store the URL and mark status as true if a record exists
+              attendanceDataMap[userId] = {
+                  'attendanceSubmitted': true,
+                  'attendanceUrl': attendanceDetails['selfieUrl'] as String?,
+              };
+            }
+        }
+    }
+    
+    // --- 3. Merge FEEDBACK Data (from /examFeedbacks) ---
+    final feedbackSnapshot = await firestore.collection('examFeedbacks').get();
+    final Map<String, Map<String, dynamic>> feedbackDataMap = {};
+    for (final doc in feedbackSnapshot.docs) {
+        final data = doc.data();
+        final String? userId = data['userId'] as String?;
+        if (userId != null) {
+            feedbackDataMap[userId] = data;
+        }
+    }
+
+    // --- Final List Merge ---
+    final List<SubmissionData> finalSubmissions = [];
+
+    for (final submission in submissionMap.values) {
+        // Create the final merged object by combining all three sources
+        
+        final isAttendance = attendanceDataMap.containsKey(submission.userId);
+        final attendanceUrl = isAttendance ? attendanceDataMap[submission.userId]!['attendanceUrl'] as String? : null;
+
+        final isFeedback = feedbackDataMap.containsKey(submission.userId);
+        final feedbackContent = isFeedback ? feedbackDataMap[submission.userId]!['suggestions'] as String? 
+                                          : (isFeedback ? feedbackDataMap[submission.userId]!['feedbackText'] as String? : null);
+        
+        final updatedSubmission = SubmissionData(
+            userId: submission.userId,
+            name: submission.name,
+            email: submission.email,
+            userRole: submission.userRole,
+            subjectName: submission.subjectName,
+            
+            // --- MERGED STATUSES ---
+            attendanceSubmitted: isAttendance,
+            attendanceUrl: attendanceUrl,
+            
+            invigilationFormSubmitted: submission.invigilationFormSubmitted,
+            invigilationFileUrl: submission.invigilationFileUrl,
+            
+            feedbackSubmitted: isFeedback, 
+            feedbackContent: feedbackContent,
+            
+            // Form fields from /exam_submissions
+            examDate: submission.examDate,
+            examSlot: submission.examSlot,
+            examType: submission.examType,
+            numStudents: submission.numStudents,
+        );
+        finalSubmissions.add(updatedSubmission);
+    }
+    
+    // --- 4. Return Final List ---
+    return finalSubmissions; 
   }
 
-  // ---------------- BOTTOM NAV ---------------- (Matches Design)
+
+  // ---------------- UI BUILDERS & WIDGETS ----------------
+
   Widget _buildBottomNav(BuildContext context) {
+    // ... (rest of the bottom nav code is unchanged)
     return Container(
       padding: const EdgeInsets.fromLTRB(8, 6, 8, 10),
       decoration: BoxDecoration(
@@ -210,7 +441,6 @@ class SubmissionTrackingScreen extends StatelessWidget {
     );
   }
 
-  // ---------------- TOP PILL ---------------- (Matches Design)
   Widget _pill() {
     return Container(
       width: 327,
@@ -233,11 +463,8 @@ class SubmissionTrackingScreen extends StatelessWidget {
     );
   }
 
-  // ---------------- HEADER ----------------
-  // 🚨 DESIGN FIX: Captures the primaryPurple background with white icons/text
   Widget _header(BuildContext context) {
     return Container(
-      // CRITICAL FIX: The design shows a solid purple header, NOT white.
       color: primaryPurple, 
       padding: const EdgeInsets.only(top: 32, left: 9, right: 18, bottom: 0),
       child: Column(
@@ -248,7 +475,7 @@ class SubmissionTrackingScreen extends StatelessWidget {
               IconButton(
                 icon: const Icon(
                   Icons.arrow_back,
-                  color: Colors.white, // White icon against purple
+                  color: Colors.white, 
                   size: 32,
                 ),
                 onPressed: () => Navigator.of(context).pop(),
@@ -258,13 +485,12 @@ class SubmissionTrackingScreen extends StatelessWidget {
                 "ExamDuty+",
                 style: TextStyle(
                   fontFamily: "Poppins",
-                  color: Colors.white, // White text against purple
+                  color: Colors.white, 
                   fontSize: 21,
                   fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(width: 8),
-              // Profile/Logo Container
               Container(
                 width: 43,
                 height: 43,
@@ -280,7 +506,6 @@ class SubmissionTrackingScreen extends StatelessWidget {
                   ],
                 ),
                 child: const Center(
-                  // Purple icon inside white box
                   child: Icon(Icons.school_rounded, color: primaryPurple, size: 24), 
                 ),
               ),
@@ -291,7 +516,6 @@ class SubmissionTrackingScreen extends StatelessWidget {
     );
   }
   
-  // ---------------- CARD HELPERS ----------------
   Widget _statusChip(String label, Color bg, Color textColor) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -317,7 +541,6 @@ class SubmissionTrackingScreen extends StatelessWidget {
     Color color,
     VoidCallback? onTap,
   ) {
-    // 🚨 DESIGN FIX: Ensure the row text color and font size match
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -327,24 +550,24 @@ class SubmissionTrackingScreen extends StatelessWidget {
             Text(
               label,
               style: const TextStyle(
-                fontSize: 14.0, // Increased size to match design
-                color: Colors.black87, // Dark text for the label
+                fontSize: 14.0, 
+                color: Colors.black87, 
               ),
             ),
             const Spacer(),
             Icon(
               icon,
-              size: 18, // Slightly larger icon
+              size: 18, 
               color: color,
             ),
             const SizedBox(width: 4),
             Text(
               status,
               style: TextStyle(
-                fontSize: 14.0, // Increased size to match design
+                fontSize: 14.0, 
                 color: color,
-                fontWeight: FontWeight.w500, // Medium font weight
-                decoration: onTap != null ? TextDecoration.underline : null,
+                fontWeight: FontWeight.w500, 
+                decoration: onTap != null && status != 'Not Applicable' ? TextDecoration.underline : null,
               ),
             ),
           ],
@@ -356,10 +579,10 @@ class SubmissionTrackingScreen extends StatelessWidget {
   // CARD WIDGET: Displays User Role, Email, and File Links
   Widget _submissionListTile(BuildContext context, SubmissionData data) {
     
-    final bool isSuperProctor = data.userRole.toLowerCase() == 'superproctor';
+    // Check if the user is required to submit the Invigilation Form
+    final bool isInvigilationRequired = data.userRole.toLowerCase() == 'superproctor';
     
-    final bool isFormApplicable = isSuperProctor;
-    final bool formCompleted = isFormApplicable ? data.invigilationFormSubmitted : true;
+    final bool formCompleted = isInvigilationRequired ? data.invigilationFormSubmitted : true;
 
     final bool isComplete = data.attendanceSubmitted && data.feedbackSubmitted && formCompleted;
     
@@ -387,7 +610,7 @@ class SubmissionTrackingScreen extends StatelessWidget {
             ),
           ],
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16), // Increased vertical padding
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -403,12 +626,12 @@ class SubmissionTrackingScreen extends StatelessWidget {
                       Text(
                         '${data.name} (${data.userRole})',
                         style: const TextStyle(
-                          fontSize: 16.0, // Match design's larger name font
-                          fontWeight: FontWeight.bold, // Match design's bold name
+                          fontSize: 16.0,
+                          fontWeight: FontWeight.bold,
                           color: Colors.black,
                         ),
                       ),
-                      const SizedBox(height: 5), // Added space
+                      const SizedBox(height: 5),
                       // Name of the Subject
                       Text(
                         "Name of the Subject: ${data.subjectName}",
@@ -417,7 +640,7 @@ class SubmissionTrackingScreen extends StatelessWidget {
                           color: darkGreyText, 
                         ),
                       ),
-                      const SizedBox(height: 5), // Added space
+                      const SizedBox(height: 5),
                       const Text(
                         "Date", // Placeholder text for date, as per design
                         style: TextStyle(
@@ -437,44 +660,46 @@ class SubmissionTrackingScreen extends StatelessWidget {
               thickness: 0.7,
               color: Color(0xFFE0E0E0),
             ),
-            const SizedBox(height: 10), // Increased spacing before rows
+            const SizedBox(height: 10),
             
             // SUBMISSION TRACKING ROWS
-            // 1. Attendance/Selfie
+            // 1. Attendance/Selfie - ON TAP: SHOW IMAGE DIALOG
             _submissionRow(
               "Attendance",
               data.attendanceSubmitted ? "Submitted" : "Pending", 
               data.attendanceSubmitted ? Icons.check_circle_outline : Icons.schedule_outlined,
               data.attendanceSubmitted ? statusSubmittedColor : statusPendingColor,
               data.attendanceSubmitted 
-                ? () => _launchUrl(context, data.attendanceUrl) 
+                ? () => _showImageDialog(context, data.attendanceUrl, data.name)
                 : null,
             ),
             const SizedBox(height: 10), 
             
-            // 2. Feedback
+            // 2. Feedback - ON TAP: SHOW FEEDBACK CONTENT DIALOG
             _submissionRow(
               "Feedback",
               data.feedbackSubmitted ? "Submitted" : "Pending",
               data.feedbackSubmitted ? Icons.check_circle_outline : Icons.schedule_outlined,
               data.feedbackSubmitted ? statusSubmittedColor : statusPendingColor,
-              null, 
+              data.feedbackSubmitted 
+                ? () => _showFeedbackDialog(context, data.feedbackContent, data.name)
+                : null,
             ),
             const SizedBox(height: 10),
 
-            // 3. Invigilation Form (Conditional)
-            if (isFormApplicable)
+            // 3. Invigilation Form (Conditional) - ON TAP: SHOW FORM DETAILS + FILE LINK
+            if (isInvigilationRequired)
               _submissionRow(
                 "Invigilation Form", 
                 data.invigilationFormSubmitted ? "Submitted" : "Pending",
                 data.invigilationFormSubmitted ? Icons.check_circle_outline : Icons.schedule_outlined,
                 data.invigilationFormSubmitted ? statusSubmittedColor : statusPendingColor,
                 data.invigilationFormSubmitted 
-                  ? () => _launchUrl(context, data.invigilationFileUrl) 
+                  ? () => _showInvigilationFormDialog(context, data) 
                   : null,
               )
             else
-              // Display 'Not Applicable' for Observers (Matches Design)
+              // Display 'Not Applicable' for roles not requiring the form (e.g., Observer)
               _submissionRow(
                 "Invigilation Form",
                 "Not Applicable",
@@ -492,8 +717,7 @@ class SubmissionTrackingScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: lightGreyBackground, // Light background
-      // Removed safe area from bottom to allow the bottom nav to sit at the edge
+      backgroundColor: lightGreyBackground,
       bottomNavigationBar: _buildBottomNav(context), 
       body: SafeArea(
         child: Column(
@@ -507,7 +731,15 @@ class SubmissionTrackingScreen extends StatelessWidget {
                     return const Center(child: CircularProgressIndicator());
                   }
                   if (snapshot.hasError) {
-                    return Center(child: Text('Error loading data: ${snapshot.error}'));
+                    // Display the error message clearly for admin diagnosis
+                    return Center(child: Padding(
+                      padding: const EdgeInsets.all(30.0),
+                      child: Text(
+                        'Error loading submissions: ${snapshot.error}',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                      ),
+                    ));
                   }
                   
                   final submissions = snapshot.data ?? [];
@@ -522,21 +754,88 @@ class SubmissionTrackingScreen extends StatelessWidget {
                     );
                   }
 
-                  return SingleChildScrollView(
-                    child: Column(
-                      children: [
-                        // The pill needs to be inside the scroll view to handle overflow
-                        _pill(),
-                        // RENDER ALL LIVE SUBMISSIONS
-                        ...submissions.map((data) => _submissionListTile(context, data)).toList(),
-                        const SizedBox(height: 10),
-                      ],
-                    ),
+                  return Column(
+                    children: [
+                      _pill(),
+                      Expanded(
+                        child: ListView.builder(
+                          itemCount: submissions.length,
+                          itemBuilder: (context, index) {
+                            return _submissionListTile(context, submissions[index]);
+                          },
+                        ),
+                      ),
+                    ],
                   );
                 },
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------- HELPER WIDGETS ----------------
+
+class _NavItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _NavItem({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            icon,
+            color: const Color(0xFF196BDE),
+            size: 28,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFF196BDE),
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ExamTypeChip extends StatelessWidget {
+  const _ExamTypeChip();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding:
+          const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(13),
+      ),
+      child: const Text(
+        "Exam Type",
+        style: TextStyle(
+          color: Colors.black,
+          fontWeight: FontWeight.bold,
+          fontSize: 14,
         ),
       ),
     );

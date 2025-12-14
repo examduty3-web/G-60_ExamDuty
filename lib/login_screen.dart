@@ -191,11 +191,12 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
           // Top right: Institute/BITS logo
           Positioned(
-            top: 22,
+            top: 15,
             right: 15,
             child: Image.asset(
               'assets/bits_logo.png',
-              height: 45,
+              width: 80,
+              height: 85,
               fit: BoxFit.contain,
             ),
           ),

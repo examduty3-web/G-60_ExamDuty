@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 // 🚨 NEW IMPORTS for Firebase
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // <--- CRITICAL: ADDED FOR UID ACCESS
 import 'feedback_model.dart'; // Ensure this file exists and contains the FeedbackModel
 
 // 🚨 FIRESTORE COLLECTION REFERENCE
@@ -40,9 +41,19 @@ class _FeedbackFormScreenState extends State<FeedbackFormScreen> {
   int _overallRating = 0; // 1–5 stars
 
   bool _isLoading = false;
+  
+  User? _firebaseUser() => FirebaseAuth.instance.currentUser; // <--- ADDED
 
   // 🚨 UPDATED: Firestore Submission Logic
   Future<void> _submitFeedback() async {
+    final user = _firebaseUser();
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Error: User not authenticated. Cannot submit feedback."), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
     // 1. Validation Checks
     if (!_formKey.currentState!.validate()) return;
     if (_overallRating == 0) {
@@ -74,12 +85,22 @@ class _FeedbackFormScreenState extends State<FeedbackFormScreen> {
     );
 
     try {
-      // 3. Save data to Firestore
-      await feedbackCollection.add(newFeedback.toFirestore());
+      // 3. Save detailed feedback data to /examFeedbacks (Correct)
+      // NOTE: feedbackModel must include userId field, or we add it to the map here
+      Map<String, dynamic> feedbackData = newFeedback.toFirestore();
+      feedbackData['userId'] = user.uid; // <--- CRITICAL: Ensure userId is stored in the Feedback document
+      await feedbackCollection.add(feedbackData);
+
+      // 4. CRITICAL FIX: Update the Admin Tracking Document in /exam_submissions
+      await FirebaseFirestore.instance.collection('exam_submissions').doc(user.uid).set({
+          'userId': user.uid,
+          'feedbackSubmitted': true, // <--- CRITICAL STATUS FLAG ADDED
+          'feedbackTime': FieldValue.serverTimestamp(), 
+      }, SetOptions(merge: true)); // <--- Ensures existing duty details are preserved.
 
       if (!mounted) return;
 
-      // 4. Show success dialog and navigate
+      // 5. Show success dialog and navigate
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -99,7 +120,7 @@ class _FeedbackFormScreenState extends State<FeedbackFormScreen> {
         ),
       );
       
-      // Optional: Reset form fields after successful submission
+      // 6. Optional: Reset form fields after successful submission
       _q1Controller.clear();
       _q2Controller.clear();
       _q3Controller.clear();
@@ -113,16 +134,16 @@ class _FeedbackFormScreenState extends State<FeedbackFormScreen> {
       });
 
     } catch (e) {
-      // 5. Handle submission error
+      // 7. Handle submission error
       if (!mounted) return;
       print('Firebase Submission Error: $e'); // Log error for debugging
-       ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Submission failed: Please check your network or try again."),
         ),
       );
     } finally {
-      // 6. Reset loading state
+      // 8. Reset loading state
       if (mounted) {
         setState(() => _isLoading = false);
       }
@@ -144,6 +165,7 @@ class _FeedbackFormScreenState extends State<FeedbackFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // ... (rest of the build method is unchanged)
     return Scaffold(
       backgroundColor: Colors.white,
       bottomNavigationBar: _buildBottomBarRounded(context),
