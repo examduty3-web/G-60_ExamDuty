@@ -12,8 +12,9 @@ import 'exam_formalities.dart';
 import 'dashboard_screen.dart'; 
 import 'bank_details.dart'; 
 
-final CollectionReference honorariumCollection = 
-    FirebaseFirestore.instance.collection('honorariumSubmissions');
+// 🚨 CRITICAL FIX: The collection reference must be 'travel_requests'
+final CollectionReference travelRequestsCollection = 
+    FirebaseFirestore.instance.collection('travel_requests');
 
 class TravelStayScreen extends StatefulWidget {
   final String userName;
@@ -54,10 +55,6 @@ class _TravelStayScreenState extends State<TravelStayScreen> {
 
     if (_travelRequired == null) return false;
     if (_accommodationRequired == null) return false;
-
-    // Must validate the form fields as well
-    // Note: We skip calling _formKey.currentState!.validate() here to avoid constant validation popups
-    // The Submit button onTap will handle the full validation.
     
     return true;
   }
@@ -84,7 +81,6 @@ class _TravelStayScreenState extends State<TravelStayScreen> {
   // 🚨 CRITICAL FIX: Implement Firebase Submission Logic
   Future<void> _submitRequirements() async {
     if (!_formKey.currentState!.validate()) {
-      // Show snackbar if validation fails silently
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Please fill all required fields correctly.")),
       );
@@ -94,7 +90,6 @@ class _TravelStayScreenState extends State<TravelStayScreen> {
 
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      // Should not happen if authenticated route is set up, but safe fallback.
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Authentication error. Please log in again.")),
       );
@@ -119,26 +114,26 @@ class _TravelStayScreenState extends State<TravelStayScreen> {
     final String stayDate = _accommodationRequired == 'yes' 
         ? _checkInDateController.text : 'N/A';
     
-    // --- 2. Build Honorarium Model Data (CRITICAL for Admin Review) ---
+    // --- 2. Build Submission Data (CRITICAL for Rule Check) ---
     final Map<String, dynamic> submissionData = {
-      'userId': uid,
+      'userId': uid, // <--- CRITICAL: Ensures the rule check passes for Observer/SuperProctor
       'userName': widget.userName,
       'userEmail': widget.userEmail,
       'userRole': widget.userRole,
       'contactInfo': _contactInfoController.text.trim(),
       'specialRequirements': _specialReqController.text.trim(),
 
-      // Travel fields (Model requires these for review dialog)
+      // Travel fields
       'travelDetails': travelDetails,
       'travelDate': travelDate,
       'travelStatus': 'Pending', 
-      'travelAmount': 0.0, // Initial amount is zero
+      'travelAmount': 0.0,
 
       // Stay fields
       'stayDetails': stayDetails,
       'stayDate': stayDate,
       'stayStatus': 'Pending',
-      'stayAmount': 0.0, // Initial amount is zero
+      'stayAmount': 0.0,
 
       // Overall status fields (for summary/status screens)
       'overallApprovalStatus': 'Pending', 
@@ -148,8 +143,9 @@ class _TravelStayScreenState extends State<TravelStayScreen> {
 
     // --- 3. Save to Firestore ---
     try {
+      // 🚨 CRITICAL FIX: Using travelRequestsCollection which has the correct security rule setup
       // Use set() to overwrite/create the document using UID as the ID
-      await honorariumCollection.doc(uid).set(submissionData);
+      await travelRequestsCollection.doc(uid).set(submissionData); 
       
       if (!mounted) return;
       
@@ -185,8 +181,10 @@ class _TravelStayScreenState extends State<TravelStayScreen> {
       );
     } catch (e) {
       if (!mounted) return;
+      // 🚨 Debugging the specific error
+      print("Firestore Submission Error (Travel/Stay): $e"); 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to submit requirements: ${e.toString()}")),
+        SnackBar(content: Text("Failed to submit requirements: [cloud_firestore/permission-denied] Missing or insufficient permissions. Please contact Admin.")),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -213,7 +211,7 @@ class _TravelStayScreenState extends State<TravelStayScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // HEADER (Unchanged)
+            // HEADER
             Stack(
               children: [
                 Container(
@@ -695,10 +693,27 @@ class _TravelStayScreenState extends State<TravelStayScreen> {
             },
           ),
           _NavItem(icon: Icons.account_balance_rounded, label: "Bank Details", onTap: () {
-             // 💡 TODO: Navigate to BankDetailsScreen
+             Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => BankDetailsScreen(
+                    userName: widget.userName,
+                    userEmail: widget.userEmail,
+                    userRole: widget.userRole,
+                  ),
+                ),
+              );
           }),
           _NavItem(icon: Icons.account_balance_wallet_rounded, label: "Honorarium Status", onTap: () {
-             // 💡 TODO: Navigate to HonorariumStatusScreen
+             Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => HonorariumStatusScreen(
+                    userName: widget.userName,
+                    userEmail: widget.userEmail,
+                    userRole: widget.userRole,
+                    userId: FirebaseAuth.instance.currentUser?.uid ?? '',
+                  ),
+                ),
+              );
           }),
           _NavItem(icon: Icons.person_rounded, label: "My Profile", onTap: () {
             // 💡 TODO: Navigate to ProfileScreen

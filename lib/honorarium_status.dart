@@ -5,7 +5,7 @@ import 'honorarium_model.dart';
 import 'package:intl/intl.dart';
 
 final CollectionReference honorariumCollection = 
-    FirebaseFirestore.instance.collection('honorariumSubmissions');
+    FirebaseFirestore.instance.collection('travel_requests');
 
 class HonorariumStatusScreen extends StatelessWidget {
   final String userName;

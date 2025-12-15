@@ -12,7 +12,7 @@ const Color darkGreyText = Color(0xFF65657E);
 const Color statusPendingColor = Color(0xFFFF9800);
 
 final CollectionReference honorariumCollection = 
-    FirebaseFirestore.instance.collection('honorariumSubmissions');
+    FirebaseFirestore.instance.collection('travel_requests');
 
 class HonorariumSummaryScreen extends StatefulWidget {
   final String userName;
