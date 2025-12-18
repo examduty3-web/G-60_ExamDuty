@@ -1,5 +1,5 @@
 name: exam_duty_app
-description: "A new Flutter project."
+description: "One App to Manage Attendance, Feedback, and Travel with Ease."
 publish_to: 'none'
 
 version: 1.0.0+1
@@ -22,11 +22,33 @@ dependencies:
   image_picker: ^1.2.1
   firebase_storage: ^13.0.4
   cloud_firestore: ^6.1.0
+  geocoding: ^3.0.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  # Packages for generating launcher icons and splash screens
+  flutter_launcher_icons: ^0.14.4
+  flutter_native_splash: ^2.4.7
+
+# Configuration for App Launcher Icons
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/app_icon.png" # Updated to your new icon file
+  min_sdk_android: 21
+  adaptive_icon_background: "#5335EA" # Matches your purple brand color
+  adaptive_icon_foreground: "assets/app_icon.png"
+
+# Configuration for Native Splash Screen
+flutter_native_splash:
+  color: "#5335EA" # Background color for the splash screen
+  image: "assets/app_icon.png" # Updated to your new icon file
+  android_12:
+    image: "assets/app_icon.png"
+    color: "#5335EA"
+  fullscreen: true
 
 flutter:
   uses-material-design: true
@@ -35,3 +57,4 @@ flutter:
     - assets/admin_logo.png
     - assets/not_admin_logo.png
     - assets/bits_pilani.png
+    - assets/app_icon.png 
