@@ -10,13 +10,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class AdminDashboardScreen extends StatefulWidget {
   final String userName;
   final String userEmail;
-  final String userRole; // 🚨 ADD THIS LINE
+  final String userRole; 
 
   const AdminDashboardScreen({
     super.key,
     required this.userName,
     required this.userEmail,
-    required this.userRole, // 🚨 ADD THIS LINE
+    required this.userRole,
   });
 
   @override
